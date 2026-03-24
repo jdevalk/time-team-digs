@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mapping Every Time Team Dig: An AI Collaboration</title>
-    <meta name="description" content="An interactive map of all 291 Time Team archaeological dig locations across 30 years, built through AI collaboration.">
+    <meta name="description" content="An interactive map of all 281 Time Team archaeological dig locations across 30 years, built through AI collaboration.">
     <meta property="og:title" content="Mapping Every Time Team Dig: An AI Collaboration">
-    <meta property="og:description" content="All 291 Time Team dig locations mapped — from 1994 Channel 4 episodes to the YouTube revival.">
+    <meta property="og:description" content="All 281 Time Team dig locations mapped — from 1994 Channel 4 episodes to the YouTube revival.">
     <meta property="og:type" content="article">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         :root {
             --bg: #faf9f6;
@@ -69,19 +71,20 @@
             padding: 3rem 1.5rem;
         }
 
+        .wide-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
         h2 {
             font-size: 1.6rem;
             margin: 2.5rem 0 1rem;
             color: #1a1207;
         }
 
-        p {
-            margin-bottom: 1.25rem;
-        }
-
-        a {
-            color: var(--accent);
-        }
+        p { margin-bottom: 1.25rem; }
+        a { color: var(--accent); }
 
         .stats-grid {
             display: grid;
@@ -112,27 +115,64 @@
             letter-spacing: 0.05em;
         }
 
-        .map-embed {
-            margin: 2.5rem 0;
+        #map {
+            height: 600px;
+            width: 100%;
             border-radius: 10px;
-            overflow: hidden;
             border: 1px solid var(--border);
             box-shadow: 0 4px 20px rgba(0,0,0,0.08);
         }
 
-        .map-embed iframe {
-            width: 100%;
-            height: 500px;
-            border: 0;
+        .map-controls {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 1rem 0;
         }
 
-        .map-caption {
+        .map-btn {
+            font-family: system-ui, sans-serif;
+            font-size: 0.8rem;
+            padding: 0.4rem 0.9rem;
+            border-radius: 20px;
+            border: 2px solid var(--border);
             background: var(--card-bg);
-            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-weight: 600;
+        }
+
+        .map-btn:hover { border-color: var(--accent); }
+        .map-btn.active { border-color: var(--accent); background: var(--accent); color: white; }
+
+        .map-btn.c4 { color: var(--c4); }
+        .map-btn.c4.active { background: var(--c4); border-color: var(--c4); color: white; }
+        .map-btn.special { color: var(--special); }
+        .map-btn.special.active { background: var(--special); border-color: var(--special); color: white; }
+        .map-btn.yt { color: var(--yt); }
+        .map-btn.yt.active { background: var(--yt); border-color: var(--yt); color: white; }
+
+        .map-search {
+            display: block;
+            width: 100%;
+            max-width: 400px;
+            margin: 1rem auto;
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            background: var(--card-bg);
+        }
+
+        .map-search:focus { outline: none; border-color: var(--accent); }
+
+        .map-caption {
+            text-align: center;
             font-size: 0.85rem;
             color: var(--muted);
-            border-top: 1px solid var(--border);
-            text-align: center;
+            margin-top: 0.75rem;
         }
 
         .legend {
@@ -140,7 +180,7 @@
             gap: 1.5rem;
             justify-content: center;
             flex-wrap: wrap;
-            margin: 1.5rem 0;
+            margin: 1.5rem 0 0.5rem;
         }
 
         .legend-item {
@@ -169,10 +209,7 @@
             margin: 1.5rem 0;
         }
 
-        .issues-list li {
-            margin-bottom: 0.5rem;
-            color: var(--text);
-        }
+        .issues-list li { margin-bottom: 0.5rem; }
 
         .workflow-steps {
             position: relative;
@@ -205,16 +242,8 @@
             font-family: system-ui, sans-serif;
         }
 
-        .workflow-step h3 {
-            font-size: 1.1rem;
-            margin-bottom: 0.3rem;
-        }
-
-        .workflow-step p {
-            font-size: 0.95rem;
-            color: var(--muted);
-            margin-bottom: 0;
-        }
+        .workflow-step h3 { font-size: 1.1rem; margin-bottom: 0.3rem; }
+        .workflow-step p { font-size: 0.95rem; color: var(--muted); margin-bottom: 0; }
 
         blockquote {
             border-left: 4px solid var(--accent);
@@ -233,9 +262,7 @@
             margin: 1.5rem 0;
         }
 
-        @media (max-width: 500px) {
-            .findings-grid { grid-template-columns: 1fr; }
-        }
+        @media (max-width: 500px) { .findings-grid { grid-template-columns: 1fr; } }
 
         .finding-card {
             background: var(--card-bg);
@@ -244,21 +271,9 @@
             padding: 1rem;
         }
 
-        .finding-card .region {
-            font-weight: 700;
-            font-size: 1rem;
-        }
-
-        .finding-card .count {
-            color: var(--accent);
-            font-size: 0.9rem;
-        }
-
-        .finding-card .detail {
-            font-size: 0.85rem;
-            color: var(--muted);
-            margin-top: 0.25rem;
-        }
+        .finding-card .region { font-weight: 700; }
+        .finding-card .count { color: var(--accent); font-size: 0.9rem; }
+        .finding-card .detail { font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem; }
 
         .grade-table {
             width: 100%;
@@ -307,160 +322,283 @@
         }
 
         footer a { color: var(--accent); }
+
+        .leaflet-popup-content {
+            font-family: system-ui, sans-serif;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .popup-title {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .popup-meta { color: #6b7280; }
+        .popup-meta span { display: inline-block; margin-right: 8px; }
+        .popup-period { color: var(--accent); font-weight: 600; }
     </style>
 </head>
 <body>
 
 <header class="hero">
     <h1>Mapping Every Time Team Dig</h1>
-    <p class="subtitle">An AI Collaboration &mdash; 291 episodes, 281 locations, 30 years of archaeology</p>
+    <p class="subtitle">An AI Collaboration &mdash; 281 locations, 30 years of archaeology</p>
     <p class="meta">Based on <a href="https://www.alexschultz.co.uk/mapping-every-time-team-dig-an-ai-collaboration/">the original article</a> by Alex Schultz &middot; March 24, 2026</p>
 </header>
 
-<main class="container">
+<main>
+    <div class="container">
+        <p>Time Team &mdash; the beloved archaeology documentary &mdash; ran for 20 series on Channel 4 from 1994 to 2014, before being revived on YouTube in 2022. Across that span: over 290 episodes and roughly 280 unique dig locations across 30 years.</p>
 
-    <p>Time Team &mdash; the beloved archaeology documentary &mdash; ran for 20 series on Channel 4 from 1994 to 2014, before being revived on YouTube in 2022. Across that span: over 290 episodes and roughly 280 unique dig locations across 30 years.</p>
+        <p>Alex Schultz set out to map every single one of them, not by hand, but through a collaboration between AI agents. The result is a comprehensive database and interactive map of the entire Time Team catalogue.</p>
 
-    <p>Alex Schultz set out to map every single one of them, not by hand, but through a collaboration between AI agents. The result is a comprehensive database and interactive map of the entire Time Team catalogue.</p>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="number">291</span>
+                <span class="label">Episodes</span>
+            </div>
+            <div class="stat-card">
+                <span class="number">281</span>
+                <span class="label">Mapped Locations</span>
+            </div>
+            <div class="stat-card">
+                <span class="number">30</span>
+                <span class="label">Years</span>
+            </div>
+            <div class="stat-card">
+                <span class="number">~15 min</span>
+                <span class="label">Human Effort</span>
+            </div>
+        </div>
 
-    <div class="stats-grid">
-        <div class="stat-card">
-            <span class="number">291</span>
-            <span class="label">Episodes</span>
+        <h2>The Map</h2>
+
+        <div class="legend">
+            <span class="legend-item"><span class="legend-dot dot-c4"></span> Channel 4 (1994&ndash;2014)</span>
+            <span class="legend-item"><span class="legend-dot dot-special"></span> Specials</span>
+            <span class="legend-item"><span class="legend-dot dot-yt"></span> YouTube Revival (2022+)</span>
         </div>
-        <div class="stat-card">
-            <span class="number">281</span>
-            <span class="label">Mapped Locations</span>
+
+        <div class="map-controls">
+            <button class="map-btn active" data-filter="all">All (281)</button>
+            <button class="map-btn c4" data-filter="c4">Channel 4</button>
+            <button class="map-btn special" data-filter="special">Specials</button>
+            <button class="map-btn yt" data-filter="youtube">YouTube</button>
         </div>
-        <div class="stat-card">
-            <span class="number">30</span>
-            <span class="label">Years</span>
-        </div>
-        <div class="stat-card">
-            <span class="number">~15 min</span>
-            <span class="label">Human Effort</span>
-        </div>
+
+        <input type="text" class="map-search" placeholder="Search locations, episodes, periods..." id="mapSearch">
     </div>
 
-    <h2>The Map</h2>
-
-    <div class="legend">
-        <span class="legend-item"><span class="legend-dot dot-c4"></span> Channel 4 (1994&ndash;2014)</span>
-        <span class="legend-item"><span class="legend-dot dot-special"></span> Specials</span>
-        <span class="legend-item"><span class="legend-dot dot-yt"></span> YouTube Revival (2022+)</span>
+    <div class="wide-container">
+        <div id="map"></div>
+        <p class="map-caption">Click any marker for episode details &middot; Data from Alex Schultz's <a href="https://www.google.com/maps/d/u/0/edit?mid=1Wo8zrD3EEdehXK6E5Xa4xN1txRfmYJc&usp=sharing" target="_blank" rel="noopener">Google Maps dataset</a></p>
     </div>
 
-    <div class="map-embed">
-        <iframe src="https://www.google.com/maps/d/u/0/embed?mid=1Wo8zrD3EEdehXK6E5Xa4xN1txRfmYJc" allowfullscreen loading="lazy"></iframe>
-        <div class="map-caption">Interactive map of all Time Team dig locations &middot; <a href="https://www.google.com/maps/d/u/0/edit?mid=1Wo8zrD3EEdehXK6E5Xa4xN1txRfmYJc&usp=sharing" target="_blank" rel="noopener">Open in Google Maps</a></div>
+    <div class="container">
+        <h2>How It Was Built</h2>
+
+        <p>Rather than manually cataloguing dig sites, Schultz enlisted Claude as a persistent AI agent to locate every Time Team excavation. The agent pulled data from Wikipedia's episode lists, individual series pages, fan databases, and the Time Team Digital YouTube channel.</p>
+
+        <div class="workflow-steps">
+            <div class="workflow-step" data-step="1">
+                <h3>Initial Data Gathering</h3>
+                <p>Claude compiled episode data from multiple sources, producing a CSV database, KML file for Google Maps, and a Leaflet.js interactive map with 271 mapped locations, colour-coded by era.</p>
+            </div>
+            <div class="workflow-step" data-step="2">
+                <h3>Cross-Model Peer Review</h3>
+                <p>The dataset was submitted to ChatGPT for independent critique &mdash; a second opinion from a different model to catch blind spots.</p>
+            </div>
+            <div class="workflow-step" data-step="3">
+                <h3>Quality Revision</h3>
+                <p>ChatGPT's feedback was fed back to Claude, which performed a thorough quality pass to address every identified issue.</p>
+            </div>
+            <div class="workflow-step" data-step="4">
+                <h3>Final Dataset</h3>
+                <p>The v5 dataset: 291 episodes, 281 mapped locations, coordinate accuracy grades, normalised naming, and full audit trails.</p>
+            </div>
+        </div>
+
+        <h2>Issues Found in Peer Review</h2>
+
+        <p>The ChatGPT critique identified several issues with the initial dataset:</p>
+
+        <ul class="issues-list">
+            <li><strong>Geocoding imprecision</strong> &mdash; e.g. Aston Eyre in Shropshire placed at a village centroid rather than the actual dig site</li>
+            <li><strong>11 missing episodes</strong> from various series overlooked in the initial pass</li>
+            <li><strong>Coordinate precision</strong> &mdash; many locations used village-level centroids rather than site-level data</li>
+            <li><strong>No accuracy metadata</strong> &mdash; no way to distinguish precise coordinates from rough estimates</li>
+            <li><strong>Inconsistent naming conventions</strong> across episodes and series</li>
+        </ul>
+
+        <h2>Accuracy Grading</h2>
+
+        <p>The revised dataset introduced a coordinate accuracy grading system for transparency:</p>
+
+        <table class="grade-table">
+            <thead>
+                <tr>
+                    <th>Grade</th>
+                    <th>Meaning</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="grade-badge grade-a">A</span></td>
+                    <td>Site-level</td>
+                    <td>Coordinates point to the actual excavation site or monument</td>
+                </tr>
+                <tr>
+                    <td><span class="grade-badge grade-b">B</span></td>
+                    <td>Village-level</td>
+                    <td>Coordinates point to the correct village or immediate area</td>
+                </tr>
+                <tr>
+                    <td><span class="grade-badge grade-c">C</span></td>
+                    <td>Broad centroid</td>
+                    <td>General area only &mdash; exact location could not be determined</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Geographic Findings</h2>
+
+        <div class="findings-grid">
+            <div class="finding-card">
+                <div class="region">Somerset</div>
+                <div class="count">~16 dig sites</div>
+                <div class="detail">The most-dug county in Time Team history</div>
+            </div>
+            <div class="finding-card">
+                <div class="region">London</div>
+                <div class="count">~14 locations</div>
+                <div class="detail">Urban archaeology across the capital</div>
+            </div>
+            <div class="finding-card">
+                <div class="region">International</div>
+                <div class="count">6+ countries</div>
+                <div class="detail">Spain, France, Netherlands, Belgium, West Indies, USA</div>
+            </div>
+            <div class="finding-card">
+                <div class="region">YouTube Revival</div>
+                <div class="count">Ambitious sites</div>
+                <div class="detail">Sutton Hoo, Shetland Viking burial, and more</div>
+            </div>
+        </div>
+
+        <h2>The Takeaway</h2>
+
+        <blockquote>
+            &ldquo;The whole thing&hellip;took a few hours of elapsed time and maybe 15 minutes of my actual attention.&rdquo;
+        </blockquote>
+
+        <p>The most valuable outcome wasn't the map itself but the workflow. Using multiple AI models for peer review &mdash; treating AI outputs as iterative rather than final &mdash; produced meaningfully better results than any single-pass analysis could.</p>
+
+        <p>The approach demonstrates a practical pattern: generate with one model, critique with another, then refine. Each step improves quality, and the total human effort stays remarkably low.</p>
     </div>
-
-    <h2>How It Was Built</h2>
-
-    <p>Rather than manually cataloguing dig sites, Schultz enlisted Claude as a persistent AI agent to locate every Time Team excavation. The agent pulled data from Wikipedia's episode lists, individual series pages, fan databases, and the Time Team Digital YouTube channel.</p>
-
-    <div class="workflow-steps">
-        <div class="workflow-step" data-step="1">
-            <h3>Initial Data Gathering</h3>
-            <p>Claude compiled episode data from multiple sources, producing a CSV database, KML file for Google Maps, and a Leaflet.js interactive map with 271 mapped locations, colour-coded by era.</p>
-        </div>
-        <div class="workflow-step" data-step="2">
-            <h3>Cross-Model Peer Review</h3>
-            <p>The dataset was submitted to ChatGPT for independent critique &mdash; a second opinion from a different model to catch blind spots.</p>
-        </div>
-        <div class="workflow-step" data-step="3">
-            <h3>Quality Revision</h3>
-            <p>ChatGPT's feedback was fed back to Claude, which performed a thorough quality pass to address every identified issue.</p>
-        </div>
-        <div class="workflow-step" data-step="4">
-            <h3>Final Dataset</h3>
-            <p>The v5 dataset: 291 episodes, 281 mapped locations, coordinate accuracy grades, normalised naming, and full audit trails.</p>
-        </div>
-    </div>
-
-    <h2>Issues Found in Peer Review</h2>
-
-    <p>The ChatGPT critique identified several issues with the initial dataset:</p>
-
-    <ul class="issues-list">
-        <li><strong>Geocoding imprecision</strong> &mdash; e.g. Aston Eyre in Shropshire placed at a village centroid rather than the actual dig site</li>
-        <li><strong>11 missing episodes</strong> from various series overlooked in the initial pass</li>
-        <li><strong>Coordinate precision</strong> &mdash; many locations used village-level centroids rather than site-level data</li>
-        <li><strong>No accuracy metadata</strong> &mdash; no way to distinguish precise coordinates from rough estimates</li>
-        <li><strong>Inconsistent naming conventions</strong> across episodes and series</li>
-    </ul>
-
-    <h2>Accuracy Grading</h2>
-
-    <p>The revised dataset introduced a coordinate accuracy grading system for transparency:</p>
-
-    <table class="grade-table">
-        <thead>
-            <tr>
-                <th>Grade</th>
-                <th>Meaning</th>
-                <th>Description</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td><span class="grade-badge grade-a">A</span></td>
-                <td>Site-level</td>
-                <td>Coordinates point to the actual excavation site or monument</td>
-            </tr>
-            <tr>
-                <td><span class="grade-badge grade-b">B</span></td>
-                <td>Village-level</td>
-                <td>Coordinates point to the correct village or immediate area</td>
-            </tr>
-            <tr>
-                <td><span class="grade-badge grade-c">C</span></td>
-                <td>Broad centroid</td>
-                <td>General area only &mdash; exact location could not be determined</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <h2>Geographic Findings</h2>
-
-    <div class="findings-grid">
-        <div class="finding-card">
-            <div class="region">Somerset</div>
-            <div class="count">~16 dig sites</div>
-            <div class="detail">The most-dug county in Time Team history</div>
-        </div>
-        <div class="finding-card">
-            <div class="region">London</div>
-            <div class="count">~14 locations</div>
-            <div class="detail">Urban archaeology across the capital</div>
-        </div>
-        <div class="finding-card">
-            <div class="region">International</div>
-            <div class="count">6+ countries</div>
-            <div class="detail">Spain, France, Netherlands, Belgium, West Indies, USA</div>
-        </div>
-        <div class="finding-card">
-            <div class="region">YouTube Revival</div>
-            <div class="count">Ambitious sites</div>
-            <div class="detail">Sutton Hoo, Shetland Viking burial, and more</div>
-        </div>
-    </div>
-
-    <h2>The Takeaway</h2>
-
-    <blockquote>
-        &ldquo;The whole thing&hellip;took a few hours of elapsed time and maybe 15 minutes of my actual attention.&rdquo;
-    </blockquote>
-
-    <p>The most valuable outcome wasn't the map itself but the workflow. Using multiple AI models for peer review &mdash; treating AI outputs as iterative rather than final &mdash; produced meaningfully better results than any single-pass analysis could.</p>
-
-    <p>The approach demonstrates a practical pattern: generate with one model, critique with another, then refine. Each step improves quality, and the total human effort stays remarkably low.</p>
-
 </main>
 
 <footer>
     <p>Original article by <a href="https://www.alexschultz.co.uk/mapping-every-time-team-dig-an-ai-collaboration/" target="_blank" rel="noopener">Alex Schultz</a> &middot; Site built as a static page project</p>
 </footer>
+
+<script>
+const LOCATIONS = [{"name":"1994 S01E01 - The Guerrilla Base of the King - Athelney","lat":51.0361,"lng":-2.9278,"location":"Athelney","county":"Somerset","country":"England","period":"Anglo-Saxon","airDate":"1994-01-16","episode":"S01E01","grade":"B","era":"c4"},{"name":"1994 S01E02 - On the Edge of an Empire - Ribchester","lat":53.8147,"lng":-2.5383,"location":"Ribchester","county":"Lancashire","country":"England","period":"Roman","airDate":"1994-01-23","episode":"S01E02","grade":"B","era":"c4"},{"name":"1994 S01E03 - The New Town of a Norman Prince - Much Wenlock","lat":52.596,"lng":-2.5569,"location":"Much Wenlock","county":"Shropshire","country":"England","period":"Norman","airDate":"1994-01-30","episode":"S01E03","grade":"B","era":"c4"},{"name":"1994 S01E04 - The Fortress in the Lake - Llangorse Lake","lat":51.9264,"lng":-3.2617,"location":"Llangorse Lake","county":"Powys","country":"Wales","period":"","airDate":"1994-02-06","episode":"S01E04","grade":"B","era":"c4"},{"name":"1995 S02E01 - Lord of the Isles - Finlaggan","lat":55.8333,"lng":-6.2333,"location":"Finlaggan","county":"Islay","country":"Scotland","period":"Medieval","airDate":"1995-01-08","episode":"S02E01","grade":"B","era":"c4"},{"name":"1995 S02E02 - The Saxon Graves - Winterbourne Gunner","lat":51.1167,"lng":-1.7667,"location":"Winterbourne Gunner","county":"Wiltshire","country":"England","period":"Anglo-Saxon","airDate":"1995-01-15","episode":"S02E02","grade":"B","era":"c4"},{"name":"1995 S02E03 - The Lost Villa - Tockenham","lat":51.5,"lng":-1.95,"location":"Tockenham","county":"Wiltshire","country":"England","period":"Roman","airDate":"1995-01-22","episode":"S02E03","grade":"B","era":"c4"},{"name":"1995 S02E04 - The Archbishop's Back Garden - Lambeth Palace","lat":51.495,"lng":-0.1194,"location":"Lambeth Palace","county":"London","country":"England","period":"Medieval","airDate":"1995-01-29","episode":"S02E04","grade":"A","era":"c4"},{"name":"1995 S02E05 - Medieval Dining Hall - Hylton Castle","lat":54.9167,"lng":-1.4167,"location":"Hylton Castle","county":"Sunderland","country":"England","period":"Medieval","airDate":"1995-02-05","episode":"S02E05","grade":"B","era":"c4"},{"name":"1996 S03E01 - Prehistoric Fogou - Boleigh/Treveneague","lat":50.0667,"lng":-5.6,"location":"Boleigh/Treveneague","county":"Cornwall","country":"England","period":"Iron Age","airDate":"1996-01-07","episode":"S03E01","grade":"B","era":"c4"},{"name":"1996 S03E02 - Hunting for Mammoth - Stanton Harcourt","lat":51.7333,"lng":-1.4167,"location":"Stanton Harcourt","county":"Oxfordshire","country":"England","period":"Palaeolithic","airDate":"1996-01-14","episode":"S03E02","grade":"B","era":"c4"},{"name":"1996 S03E03 - Village of the Templars - Templecombe","lat":51.0,"lng":-2.4167,"location":"Templecombe","county":"Somerset","country":"England","period":"Medieval","airDate":"1996-01-21","episode":"S03E03","grade":"B","era":"c4"},{"name":"1996 S03E04 - A Wreck of the Spanish Armada - Teignmouth","lat":50.5472,"lng":-3.4956,"location":"Teignmouth","county":"Devon","country":"England","period":"Tudor","airDate":"1996-01-28","episode":"S03E04","grade":"B","era":"c4"},{"name":"1996 S03E05 - Palace of the Irish Kings - Emain Macha/Creeveroe/Haughey's Fort","lat":54.3486,"lng":-6.6972,"location":"Emain Macha/Creeveroe/Haughey's Fort","county":"","country":"Northern Ireland","period":"Iron Age","airDate":"1996-02-04","episode":"S03E05","grade":"B","era":"c4"},{"name":"1996 S03E06 - Treasures of the Roman Field - Lavenham","lat":52.1117,"lng":0.7961,"location":"Lavenham","county":"Suffolk","country":"England","period":"Roman","airDate":"1996-02-11","episode":"S03E06","grade":"B","era":"c4"},{"name":"1997 S04E01 - Episode One (Maryland USA) - St. Mary's City","lat":38.1868,"lng":-76.4344,"location":"St. Mary's City","county":"Maryland","country":"USA","period":"Colonial","airDate":"1997-01-05","episode":"S04E01","grade":"B","era":"c4"},{"name":"1997 S04E02 - Mystery of the Cornish Skeletons - Launceston","lat":50.637,"lng":-4.359,"location":"Launceston","county":"Cornwall","country":"England","period":"","airDate":"1997-01-12","episode":"S04E02","grade":"B","era":"c4"},{"name":"1997 S04E03 - Steam-Powered Mint - Soho","lat":52.4953,"lng":-1.9338,"location":"Soho","county":"Birmingham","country":"England","period":"Industrial Revolution","airDate":"1997-01-19","episode":"S04E03","grade":"B","era":"c4"},{"name":"1997 S04E04 - 8th Century Church - Govan","lat":55.8561,"lng":-4.3128,"location":"Govan","county":"Glasgow","country":"Scotland","period":"Early Medieval","airDate":"1997-01-26","episode":"S04E04","grade":"B","era":"c4"},{"name":"1997 S04E05 - Norman and Medieval Castles - Malton","lat":54.1333,"lng":-0.7983,"location":"Malton","county":"North Yorkshire","country":"England","period":"Norman/Medieval","airDate":"1997-02-02","episode":"S04E05","grade":"B","era":"c4"},{"name":"1997 S04E06 - Roman Villa - Netheravon","lat":51.2333,"lng":-1.7833,"location":"Netheravon","county":"Wiltshire","country":"England","period":"Roman","airDate":"1997-02-09","episode":"S04E06","grade":"B","era":"c4"},{"name":"1997 Special - Christmas Special - Much Wenlock - Much Wenlock","lat":52.596,"lng":-2.5569,"location":"Much Wenlock","county":"Shropshire","country":"England","period":"","airDate":"1997-12-28","episode":"Special","grade":"B","era":"special"},{"name":"1998 S05E01 - Search for Richmond Palace - Richmond","lat":51.4613,"lng":-0.3037,"location":"Richmond","county":"Surrey","country":"England","period":"Tudor","airDate":"1998-01-04","episode":"S05E01","grade":"B","era":"c4"},{"name":"1998 S05E02 - Somerset Levels - Greylake","lat":51.0667,"lng":-2.8833,"location":"Greylake","county":"Somerset","country":"England","period":"","airDate":"1998-01-11","episode":"S05E02","grade":"B","era":"c4"},{"name":"1998 S05E03 - Sanday, Orkney - Sanday","lat":59.25,"lng":-2.5667,"location":"Sanday","county":"Orkney","country":"Scotland","period":"","airDate":"1998-01-18","episode":"S05E03","grade":"B","era":"c4"},{"name":"1998 S05E04 - Turkdean - Turkdean","lat":51.8333,"lng":-1.7667,"location":"Turkdean","county":"Gloucestershire","country":"England","period":"Roman","airDate":"1998-01-25","episode":"S05E04","grade":"B","era":"c4"},{"name":"1998 S05E05 - Beaker Settlement, Majorca - Deya","lat":39.7489,"lng":2.7494,"location":"Deya","county":"Majorca","country":"Spain","period":"Bronze Age","airDate":"1998-02-01","episode":"S05E05","grade":"B","era":"c4"},{"name":"1998 S05E06 - Aston Eyre - Aston Eyre","lat":52.544,"lng":-2.5134,"location":"Aston Eyre","county":"Shropshire","country":"England","period":"","airDate":"1998-02-08","episode":"S05E06","grade":"A","era":"c4"},{"name":"1998 S05E07 - Cathedral Hill, Downpatrick - Downpatrick","lat":54.3286,"lng":-5.7139,"location":"Downpatrick","county":"County Down","country":"Northern Ireland","period":"","airDate":"1998-02-22","episode":"S05E07","grade":"B","era":"c4"},{"name":"1998 S05E08 - High Worsall - High Worsall","lat":54.4333,"lng":-1.35,"location":"High Worsall","county":"North Yorkshire","country":"England","period":"","airDate":"1998-03-01","episode":"S05E08","grade":"B","era":"c4"},{"name":"1999 S06E01 - Wedgwood's First Factory - Burslem","lat":53.0439,"lng":-2.1875,"location":"Burslem","county":"Stoke-on-Trent","country":"England","period":"Industrial Revolution","airDate":"1999-01-03","episode":"S06E01","grade":"B","era":"c4"},{"name":"1999 S06E02 - Roman Building, Papcastle - Papcastle","lat":54.6667,"lng":-3.4333,"location":"Papcastle","county":"Cumbria","country":"England","period":"Roman","airDate":"1999-01-10","episode":"S06E02","grade":"B","era":"c4"},{"name":"1999 S06E03 - Dominican Friary, Thetford - Thetford","lat":52.4167,"lng":0.75,"location":"Thetford","county":"Norfolk","country":"England","period":"Medieval","airDate":"1999-01-17","episode":"S06E03","grade":"B","era":"c4"},{"name":"1999 S06E04 - Cooper's Hole - Cheddar Gorge","lat":51.2833,"lng":-2.7667,"location":"Cheddar Gorge","county":"Somerset","country":"England","period":"Prehistoric","airDate":"1999-01-24","episode":"S06E04","grade":"B","era":"c4"},{"name":"1999 S06E05 - Plympton, Devon - Plympton","lat":50.3883,"lng":-4.0547,"location":"Plympton","county":"Devon","country":"England","period":"","airDate":"1999-01-31","episode":"S06E05","grade":"B","era":"c4"},{"name":"1999 S06E06 - Medieval Dockyard, Smallhythe - Smallhythe","lat":51.0333,"lng":0.7167,"location":"Smallhythe","county":"Kent","country":"England","period":"Medieval","airDate":"1999-02-07","episode":"S06E06","grade":"B","era":"c4"},{"name":"1999 S06E07 - Roman Bath-house, Beauport Park - Beauport Park","lat":50.8833,"lng":0.55,"location":"Beauport Park","county":"East Sussex","country":"England","period":"Roman","airDate":"1999-02-14","episode":"S06E07","grade":"B","era":"c4"},{"name":"1999 S06E08 - Bombers in Reedham Marshes - Reedham","lat":52.5667,"lng":1.5667,"location":"Reedham","county":"Norfolk","country":"England","period":"World War II","airDate":"1999-02-21","episode":"S06E08","grade":"B","era":"c4"},{"name":"1999 S06E09 - Turkdean II - Turkdean","lat":51.8333,"lng":-1.7667,"location":"Turkdean","county":"Gloucestershire","country":"England","period":"Roman","airDate":"1999-02-28","episode":"S06E09","grade":"B","era":"c4"},{"name":"1999 S06E10 - Bronze Age, Kemerton - Kemerton","lat":52.0333,"lng":-2.0833,"location":"Kemerton","county":"Worcestershire","country":"England","period":"Bronze Age","airDate":"1999-03-07","episode":"S06E10","grade":"B","era":"c4"},{"name":"1999 S06E11 - Norman Church, Bawsey - Bawsey","lat":52.75,"lng":0.4333,"location":"Bawsey","county":"Norfolk","country":"England","period":"Norman","airDate":"1999-03-14","episode":"S06E11","grade":"B","era":"c4"},{"name":"1999 S06E12 - Nevis (Part 1) - Nevis","lat":17.1554,"lng":-62.5796,"location":"Nevis","county":"","country":"West Indies","period":"Colonial","airDate":"1999-03-21","episode":"S06E12","grade":"B","era":"c4"},{"name":"1999 S06E13 - Nevis (Part 2) - Nevis","lat":17.1554,"lng":-62.5796,"location":"Nevis","county":"","country":"West Indies","period":"Colonial","airDate":"1999-03-28","episode":"S06E13","grade":"B","era":"c4"},{"name":"1999 Special - Christmas Special - Barley Hall - Barley Hall","lat":53.96,"lng":-1.083,"location":"Barley Hall","county":"York","country":"England","period":"Medieval","airDate":"1999-12-19","episode":"Special","grade":"A","era":"special"},{"name":"1999 Special - The Mystery of Seahenge - Holme-next-the-Sea","lat":52.9667,"lng":0.5333,"location":"Holme-next-the-Sea","county":"Norfolk","country":"England","period":"Bronze Age","airDate":"1999-12-29","episode":"Special","grade":"B","era":"special"},{"name":"2000 S07E01 - A Muslim Port in Spain - Denia","lat":38.8408,"lng":0.1056,"location":"Denia","county":"","country":"Spain","period":"Medieval, Islamic","airDate":"2000-01-02","episode":"S07E01","grade":"B","era":"c4"},{"name":"2000 S07E02 - The Mosaic at the Bottom of the Garden - Cirencester","lat":51.7167,"lng":-1.9667,"location":"Cirencester","county":"Gloucestershire","country":"England","period":"Roman","airDate":"2000-01-09","episode":"S07E02","grade":"B","era":"c4"},{"name":"2000 S07E03 - One of the First Spitfires Lost in France - Wierre-Effroy","lat":50.7833,"lng":1.7167,"location":"Wierre-Effroy","county":"","country":"France","period":"World War II","airDate":"2000-01-16","episode":"S07E03","grade":"B","era":"c4"},{"name":"2000 S07E04 - An Iron-Age Roundhouse and a Henge - Waddon","lat":50.65,"lng":-2.4667,"location":"Waddon","county":"Dorset","country":"England","period":"Iron Age, Neolithic","airDate":"2000-01-23","episode":"S07E04","grade":"B","era":"c4"},{"name":"2000 S07E05 - Hadrian's Wall - Birdoswald","lat":54.9892,"lng":-2.6017,"location":"Birdoswald","county":"Cumbria","country":"England","period":"Roman","airDate":"2000-01-30","episode":"S07E05","grade":"A","era":"c4"},{"name":"2000 S07E06 - In Search of the Earliest Traces of Mankind - Elveden","lat":52.3833,"lng":0.65,"location":"Elveden","county":"Suffolk","country":"England","period":"Palaeolithic","airDate":"2000-02-06","episode":"S07E06","grade":"B","era":"c4"},{"name":"2000 S07E07 - The Missing Cathedral and the Diabetic Prior - Coventry","lat":52.4068,"lng":-1.5197,"location":"Coventry","county":"West Midlands","country":"England","period":"Medieval/World War II","airDate":"2000-02-13","episode":"S07E07","grade":"B","era":"c4"},{"name":"2000 S07E08 - The Royalists' Last Stand - Basing House","lat":51.2667,"lng":-1.0667,"location":"Basing House","county":"Hampshire","country":"England","period":"English Civil War","airDate":"2000-02-20","episode":"S07E08","grade":"B","era":"c4"},{"name":"2000 S07E09 - A Bronze-Age Barrow and Walkway - Flag Fen","lat":52.5703,"lng":-0.2078,"location":"Flag Fen","county":"Cambridgeshire","country":"England","period":"Bronze Age","airDate":"2000-02-27","episode":"S07E09","grade":"A","era":"c4"},{"name":"2000 S07E10 - In Search of the Palace of King Offa - Sutton St Nicholas","lat":52.1,"lng":-2.6833,"location":"Sutton St Nicholas","county":"Herefordshire","country":"England","period":"Anglo-Saxon","airDate":"2000-03-05","episode":"S07E10","grade":"B","era":"c4"},{"name":"2000 S07E11 - A Roman Temple in Sight of the Millennium Dome - Greenwich","lat":51.4769,"lng":-0.0005,"location":"Greenwich","county":"London","country":"England","period":"Roman","airDate":"2000-03-12","episode":"S07E11","grade":"B","era":"c4"},{"name":"2000 S07E12 - Nuns in Northumbria - Hartlepool","lat":54.6862,"lng":-1.2132,"location":"Hartlepool","county":"County Durham","country":"England","period":"Medieval","airDate":"2000-03-19","episode":"S07E12","grade":"B","era":"c4"},{"name":"2000 S07E13 - York - York","lat":53.96,"lng":-1.0873,"location":"York","county":"Yorkshire","country":"England","period":"Roman, Viking, Medieval","airDate":"2000-03-26","episode":"S07E13","grade":"B","era":"c4"},{"name":"2000 Special - The Real King Arthur - Tintagel Castle","lat":50.6685,"lng":-4.759,"location":"Tintagel Castle","county":"Cornwall","country":"England","period":"","airDate":"2000-12-24","episode":"Special","grade":"A","era":"special"},{"name":"2000 Special - The Mystery of Mine Howe - Tankerness","lat":58.9833,"lng":-2.95,"location":"Tankerness","county":"Orkney","country":"Scotland","period":"Iron Age","airDate":"2000-12-27","episode":"Special","grade":"B","era":"special"},{"name":"2001 S08E01 - An Anglo-Saxon Cemetery in Lincolnshire - Normanton","lat":53.0333,"lng":-0.6167,"location":"Normanton","county":"Lincolnshire","country":"England","period":"Anglo-Saxon, Bronze Age","airDate":"2001-01-07","episode":"S08E01","grade":"B","era":"c4"},{"name":"2001 S08E02 - The Man Who Bought a Castle - Alderton","lat":52.35,"lng":-0.6833,"location":"Alderton","county":"Northamptonshire","country":"England","period":"Anglo-Saxon","airDate":"2001-01-14","episode":"S08E02","grade":"B","era":"c4"},{"name":"2001 S08E03 - The Celtic Spring - Llygadwy","lat":52.0833,"lng":-3.3833,"location":"Llygadwy","county":"Powys","country":"Wales","period":"Iron Age, Neolithic","airDate":"2001-01-21","episode":"S08E03","grade":"B","era":"c4"},{"name":"2001 S08E04 - A Waltham Villa - Whittington","lat":51.9,"lng":-2.05,"location":"Whittington","county":"Gloucestershire","country":"England","period":"Roman","airDate":"2001-01-28","episode":"S08E04","grade":"B","era":"c4"},{"name":"2001 S08E05 - The Lost Viaduct - Blaenavon","lat":51.7722,"lng":-3.0878,"location":"Blaenavon","county":"Torfaen","country":"Wales","period":"Industrial Revolution","airDate":"2001-02-04","episode":"S08E05","grade":"B","era":"c4"},{"name":"2001 S08E06 - A Palace Sold for Scrap - Rycote, Thame","lat":51.7333,"lng":-1.0833,"location":"Rycote, Thame","county":"Oxfordshire","country":"England","period":"14th century-Georgian","airDate":"2001-02-11","episode":"S08E06","grade":"B","era":"c4"},{"name":"2001 S08E07 - An Iron-Age Roundhouse - Salisbury Plain","lat":51.2,"lng":-1.8333,"location":"Salisbury Plain","county":"Wiltshire","country":"England","period":"Iron Age","airDate":"2001-02-18","episode":"S08E07","grade":"C","era":"c4"},{"name":"2001 S08E08 - The Bone Caves - Alveston","lat":51.5833,"lng":-2.55,"location":"Alveston","county":"Gloucestershire","country":"England","period":"Iron Age","airDate":"2001-02-25","episode":"S08E08","grade":"B","era":"c4"},{"name":"2001 S08E09 - The Inter-City Villa - Basildon","lat":51.5167,"lng":-1.1167,"location":"Basildon","county":"Berkshire","country":"England","period":"Roman","airDate":"2001-03-04","episode":"S08E09","grade":"B","era":"c4"},{"name":"2001 Special - Coventry's Lost Cathedral - Coventry","lat":52.4068,"lng":-1.5197,"location":"Coventry","county":"West Midlands","country":"England","period":"Medieval","airDate":"2001-03-08","episode":"Special","grade":"B","era":"special"},{"name":"2001 S08E10 - Holy Island - Lindisfarne","lat":55.6814,"lng":-1.8,"location":"Lindisfarne","county":"Northumberland","country":"England","period":"16th-17th century","airDate":"2001-03-11","episode":"S08E10","grade":"B","era":"c4"},{"name":"2001 S08E11 - The Leaning Tower of Bridgnorth - Bridgnorth","lat":52.5344,"lng":-2.4175,"location":"Bridgnorth","county":"Shropshire","country":"England","period":"Norman","airDate":"2001-03-18","episode":"S08E11","grade":"B","era":"c4"},{"name":"2001 S08E12 - Three Tales of Canterbury - Canterbury","lat":51.2802,"lng":1.0789,"location":"Canterbury","county":"Kent","country":"England","period":"Roman, Medieval","airDate":"2001-03-25","episode":"S08E12","grade":"B","era":"c4"},{"name":"2001 S08E13 - The Leper Hospital - Winchester","lat":51.0634,"lng":-1.2802,"location":"Winchester","county":"Hampshire","country":"England","period":"Medieval","airDate":"2001-04-01","episode":"S08E13","grade":"A","era":"c4"},{"name":"2001 Special - Island of the Eels - Ely","lat":52.3995,"lng":0.2624,"location":"Ely","county":"Cambridgeshire","country":"England","period":"","airDate":"2001-05-17","episode":"Special","grade":"B","era":"special"},{"name":"2001 Special - Dinosaur Hunting - Montana","lat":47.0527,"lng":-109.6333,"location":"Montana","county":"","country":"USA","period":"Prehistoric","airDate":"2001-12-30","episode":"Special","grade":"C","era":"special"},{"name":"2002 S09E01 - London's First Bridge - Vauxhall","lat":51.4862,"lng":-0.1228,"location":"Vauxhall","county":"London","country":"England","period":"Bronze Age","airDate":"2002-01-06","episode":"S09E01","grade":"B","era":"c4"},{"name":"2002 S09E02 - The Roman's Panic - Ancaster","lat":52.9833,"lng":-0.55,"location":"Ancaster","county":"Lincolnshire","country":"England","period":"Roman","airDate":"2002-01-13","episode":"S09E02","grade":"B","era":"c4"},{"name":"2002 S09E03 - Diving for the Armada - Kinlochbervie","lat":58.45,"lng":-5.05,"location":"Kinlochbervie","county":"Sutherland","country":"Scotland","period":"Tudor","airDate":"2002-01-20","episode":"S09E03","grade":"B","era":"c4"},{"name":"2002 S09E04 - The Naughty Monastery - Chicksands","lat":52.0667,"lng":-0.3667,"location":"Chicksands","county":"Bedfordshire","country":"England","period":"14th century","airDate":"2002-01-27","episode":"S09E04","grade":"B","era":"c4"},{"name":"2002 S09E05 - The Furnace in the Cellar - Ironbridge Gorge","lat":52.6283,"lng":-2.4847,"location":"Ironbridge Gorge","county":"Shropshire","country":"England","period":"Industrial Revolution","airDate":"2002-02-03","episode":"S09E05","grade":"B","era":"c4"},{"name":"2002 S09E06 - An Ermine Street Pub - Cheshunt","lat":51.7,"lng":-0.0333,"location":"Cheshunt","county":"Hertfordshire","country":"England","period":"Roman","airDate":"2002-02-10","episode":"S09E06","grade":"B","era":"c4"},{"name":"2002 S09E07 - Iron-Age Market - Helford","lat":50.1,"lng":-5.1167,"location":"Helford","county":"Cornwall","country":"England","period":"Iron Age","airDate":"2002-02-17","episode":"S09E07","grade":"B","era":"c4"},{"name":"2002 S09E08 - Siege House in Shropshire - High Ercall","lat":52.7167,"lng":-2.5667,"location":"High Ercall","county":"Shropshire","country":"England","period":"English Civil War, Medieval","airDate":"2002-02-24","episode":"S09E08","grade":"B","era":"c4"},{"name":"2002 S09E09 - A Prehistoric Airfield - Throckmorton","lat":52.1667,"lng":-2.05,"location":"Throckmorton","county":"Worcestershire","country":"England","period":"Iron Age, Bronze Age","airDate":"2002-03-03","episode":"S09E09","grade":"B","era":"c4"},{"name":"2002 S09E10 - A Lost Roman City - Castleford","lat":53.7167,"lng":-1.3667,"location":"Castleford","county":"Yorkshire","country":"England","period":"Roman","airDate":"2002-03-10","episode":"S09E10","grade":"B","era":"c4"},{"name":"2002 S09E11 - Every Castle Needs a Lord - Beaudesert","lat":52.3,"lng":-1.8,"location":"Beaudesert","county":"Warwickshire","country":"England","period":"Medieval","airDate":"2002-03-17","episode":"S09E11","grade":"B","era":"c4"},{"name":"2002 S09E12 - Steptoe Et Filius - Yaverland","lat":50.6667,"lng":-1.1333,"location":"Yaverland","county":"Isle of Wight","country":"England","period":"Iron Age, Bronze Age, Roman, Anglo-Saxon","airDate":"2002-03-24","episode":"S09E12","grade":"B","era":"c4"},{"name":"2002 S09E13 - Seven Buckets and a Buckle - Breamore","lat":50.9667,"lng":-1.7833,"location":"Breamore","county":"Hampshire","country":"England","period":"Anglo-Saxon","airDate":"2002-03-31","episode":"S09E13","grade":"B","era":"c4"},{"name":"2002 Special - The Wreck of Colossus - St Mary's","lat":49.9167,"lng":-6.3,"location":"St Mary's","county":"Isles of Scilly","country":"England","period":"","airDate":"2002-10-31","episode":"Special","grade":"B","era":"special"},{"name":"2003 S10E01 - Garden Secrets - Raunds","lat":52.35,"lng":-0.5333,"location":"Raunds","county":"Northamptonshire","country":"England","period":"Anglo-Saxon, Bronze Age","airDate":"2003-01-05","episode":"S10E01","grade":"B","era":"c4"},{"name":"2003 S10E02 - Mosaics, Mosaics, Mosaics - Dinnington","lat":50.95,"lng":-2.7333,"location":"Dinnington","county":"Somerset","country":"England","period":"Roman","airDate":"2003-01-12","episode":"S10E02","grade":"B","era":"c4"},{"name":"2003 S10E03 - Peak District Practices - Carsington","lat":53.0667,"lng":-1.6167,"location":"Carsington","county":"Derbyshire","country":"England","period":"Neolithic, Iron Age","airDate":"2003-01-19","episode":"S10E03","grade":"B","era":"c4"},{"name":"2003 S10E04 - The Giant's Grave - Fetlar","lat":60.6167,"lng":-0.8667,"location":"Fetlar","county":"Shetland","country":"Scotland","period":"Viking","airDate":"2003-01-26","episode":"S10E04","grade":"B","era":"c4"},{"name":"2003 S10E05 - Joust Dig It - Greenwich","lat":51.4769,"lng":-0.0005,"location":"Greenwich","county":"London","country":"England","period":"Tudor","airDate":"2003-02-02","episode":"S10E05","grade":"B","era":"c4"},{"name":"2003 S10E06 - Digging Liberty - Merton","lat":51.4098,"lng":-0.1949,"location":"Merton","county":"London","country":"England","period":"Victorian","airDate":"2003-02-09","episode":"S10E06","grade":"B","era":"c4"},{"name":"2003 S10E07 - Death in a Crescent - Bath","lat":51.3811,"lng":-2.359,"location":"Bath","county":"Somerset","country":"England","period":"Roman","airDate":"2003-02-16","episode":"S10E07","grade":"B","era":"c4"},{"name":"2003 S10E08 - Back to Our Roots - Athelney","lat":51.0361,"lng":-2.9278,"location":"Athelney","county":"Somerset","country":"England","period":"Anglo-Saxon, Iron Age, Viking","airDate":"2003-02-23","episode":"S10E08","grade":"B","era":"c4"},{"name":"2003 S10E09 - Looking for the White House - Kew Gardens","lat":51.4787,"lng":-0.2956,"location":"Kew Gardens","county":"London","country":"England","period":"Georgian","airDate":"2003-03-02","episode":"S10E09","grade":"A","era":"c4"},{"name":"2003 S10E10 - Rescuing the Dead - Leven","lat":56.1833,"lng":-3.0,"location":"Leven","county":"Fife","country":"Scotland","period":"Bronze Age","airDate":"2003-03-09","episode":"S10E10","grade":"B","era":"c4"},{"name":"2003 S10E11 - Not a Blot on the Landscape - Castle Howard","lat":54.1256,"lng":-0.9047,"location":"Castle Howard","county":"North Yorkshire","country":"England","period":"Stuart","airDate":"2003-03-16","episode":"S10E11","grade":"A","era":"c4"},{"name":"2003 S10E12 - A View to a Kiln - Sedgefield","lat":54.65,"lng":-1.45,"location":"Sedgefield","county":"County Durham","country":"England","period":"Roman","airDate":"2003-03-23","episode":"S10E12","grade":"B","era":"c4"},{"name":"2003 S10E13 - Jailhouse Rocks - Appleby-in-Westmorland","lat":54.5833,"lng":-2.4833,"location":"Appleby-in-Westmorland","county":"Cumbria","country":"England","period":"Victorian","airDate":"2003-03-30","episode":"S10E13","grade":"B","era":"c4"},{"name":"2003 Special - Big Dig The Hole Story - Canterbury","lat":51.2802,"lng":1.0789,"location":"Canterbury","county":"Kent","country":"England","period":"","airDate":"2003-12-29","episode":"Special","grade":"B","era":"special"},{"name":"2004 S11E01 - In Search of the Brigittine Abbey - Syon House","lat":51.4733,"lng":-0.3117,"location":"Syon House","county":"London","country":"England","period":"Tudor","airDate":"2004-01-04","episode":"S11E01","grade":"A","era":"c4"},{"name":"2004 S11E02 - A Roman Bath House and Edwardian Folly - Whitestaunton Manor","lat":50.85,"lng":-2.9833,"location":"Whitestaunton Manor","county":"Somerset","country":"England","period":"Roman","airDate":"2004-01-11","episode":"S11E02","grade":"B","era":"c4"},{"name":"2004 S11E03 - The Crannog in the Loch - Loch Migdale","lat":57.8833,"lng":-4.4167,"location":"Loch Migdale","county":"Scottish Highlands","country":"Scotland","period":"Iron Age","airDate":"2004-01-18","episode":"S11E03","grade":"B","era":"c4"},{"name":"2004 S11E04 - Saxon Burials on the Ridge - South Carlton","lat":53.2833,"lng":-0.5667,"location":"South Carlton","county":"Lincolnshire","country":"England","period":"Anglo-Saxon, Bronze Age","airDate":"2004-01-25","episode":"S11E04","grade":"B","era":"c4"},{"name":"2004 S11E05 - The Roman Fort That Wasn't There - Syndale","lat":51.2667,"lng":0.9167,"location":"Syndale","county":"Kent","country":"England","period":"Roman","airDate":"2004-02-01","episode":"S11E05","grade":"B","era":"c4"},{"name":"2004 S11E06 - An Iron-Age Trading Centre - Green Island","lat":50.6833,"lng":-2.0167,"location":"Green Island","county":"Dorset","country":"England","period":"Iron Age","airDate":"2004-02-08","episode":"S11E06","grade":"B","era":"c4"},{"name":"2004 S11E07 - A Medieval Blast Furnace - Oakamoor","lat":52.9667,"lng":-1.8667,"location":"Oakamoor","county":"Staffordshire","country":"England","period":"Medieval","airDate":"2004-02-15","episode":"S11E07","grade":"B","era":"c4"},{"name":"2004 S11E08 - Rescuing a Mesolithic Foreshore - Goldcliff","lat":51.5333,"lng":-2.9167,"location":"Goldcliff","county":"Newport","country":"Wales","period":"Mesolithic","airDate":"2004-02-22","episode":"S11E08","grade":"B","era":"c4"},{"name":"2004 S11E09 - Fertile Soils Rich Archaeology - Wittenham Clumps","lat":51.6333,"lng":-1.1667,"location":"Wittenham Clumps","county":"Oxfordshire","country":"England","period":"Iron Age","airDate":"2004-02-29","episode":"S11E09","grade":"B","era":"c4"},{"name":"2004 S11E10 - King Cnut's Manor - Nassington","lat":52.5667,"lng":-0.45,"location":"Nassington","county":"Northamptonshire","country":"England","period":"Early Medieval","airDate":"2004-03-07","episode":"S11E10","grade":"B","era":"c4"},{"name":"2004 S11E11 - Back-Garden Archaeology - Ipswich","lat":52.0567,"lng":1.1547,"location":"Ipswich","county":"Suffolk","country":"England","period":"Roman","airDate":"2004-03-14","episode":"S11E11","grade":"B","era":"c4"},{"name":"2004 S11E12 - The Lost City of Roxburgh - Roxburgh","lat":55.55,"lng":-2.4333,"location":"Roxburgh","county":"Scottish Borders","country":"Scotland","period":"Medieval","airDate":"2004-03-21","episode":"S11E12","grade":"B","era":"c4"},{"name":"2004 Special - Sheffield Steel City - Sheffield","lat":53.3811,"lng":-1.4701,"location":"Sheffield","county":"South Yorkshire","country":"England","period":"","airDate":"2004-03-22","episode":"Special","grade":"B","era":"special"},{"name":"2004 S11E13 - Brimming with Remains - Cranborne Chase","lat":50.95,"lng":-2.0,"location":"Cranborne Chase","county":"Dorset","country":"England","period":"Roman","airDate":"2004-03-28","episode":"S11E13","grade":"C","era":"c4"},{"name":"2004 Special - The Ten Million Pound House - Ightham Mote","lat":51.25,"lng":0.2167,"location":"Ightham Mote","county":"Kent","country":"England","period":"","airDate":"2004-05-03","episode":"Special","grade":"A","era":"special"},{"name":"2004 Special - D-Day - Normandy","lat":49.3419,"lng":-0.875,"location":"Normandy","county":"","country":"France","period":"World War II","airDate":"2004-05-31","episode":"Special","grade":"C","era":"special"},{"name":"2005 S12E01 - The Manor That's Back to Front - Chenies Manor House","lat":51.6667,"lng":-0.5333,"location":"Chenies Manor House","county":"Buckinghamshire","country":"England","period":"","airDate":"2005-01-02","episode":"S12E01","grade":"A","era":"c4"},{"name":"2005 S12E02 - The Monastery and the Mansion - Nether Poppleton","lat":53.9833,"lng":-1.15,"location":"Nether Poppleton","county":"North Yorkshire","country":"England","period":"","airDate":"2005-01-09","episode":"S12E02","grade":"B","era":"c4"},{"name":"2005 S12E03 - The Bombers in the Marsh - Warton","lat":54.15,"lng":-2.7667,"location":"Warton","county":"Lancashire","country":"England","period":"World War II","airDate":"2005-01-16","episode":"S12E03","grade":"B","era":"c4"},{"name":"2005 S12E04 - Fighting on the Frontier - Drumlanrig","lat":55.2833,"lng":-3.7667,"location":"Drumlanrig","county":"Dumfries and Galloway","country":"Scotland","period":"Roman","airDate":"2005-01-23","episode":"S12E04","grade":"B","era":"c4"},{"name":"2005 S12E05 - A Neolithic Cathedral? - Northborough","lat":52.6167,"lng":-0.2833,"location":"Northborough","county":"Cambridgeshire","country":"England","period":"Neolithic","airDate":"2005-01-30","episode":"S12E05","grade":"B","era":"c4"},{"name":"2005 S12E06 - In Search of Henry V's Flagship, Grace Dieu - Bursledon","lat":50.8833,"lng":-1.3,"location":"Bursledon","county":"Hampshire","country":"England","period":"Medieval","airDate":"2005-02-06","episode":"S12E06","grade":"B","era":"c4"},{"name":"2005 S12E07 - Going Upmarket with the Romans - Standish","lat":51.7667,"lng":-2.2833,"location":"Standish","county":"Gloucestershire","country":"England","period":"Roman","airDate":"2005-02-13","episode":"S12E07","grade":"B","era":"c4"},{"name":"2005 S12E08 - Picts and Hermits: Cave Dwellers of Fife - Wemyss","lat":56.1667,"lng":-3.0833,"location":"Wemyss","county":"Fife","country":"Scotland","period":"","airDate":"2005-02-20","episode":"S12E08","grade":"B","era":"c4"},{"name":"2005 S12E09 - Lost Centuries of St Osyth - St Osyth","lat":51.8,"lng":1.0833,"location":"St Osyth","county":"Essex","country":"England","period":"","airDate":"2005-02-27","episode":"S12E09","grade":"B","era":"c4"},{"name":"2005 S12E10 - The Puzzle of Picket's Farm - South Perrott","lat":50.8167,"lng":-2.75,"location":"South Perrott","county":"Dorset","country":"England","period":"","airDate":"2005-03-06","episode":"S12E10","grade":"B","era":"c4"},{"name":"2005 S12E11 - Norman Neighbours - Skipsea","lat":53.9667,"lng":-0.2167,"location":"Skipsea","county":"East Riding of Yorkshire","country":"England","period":"Norman","airDate":"2005-03-13","episode":"S12E11","grade":"B","era":"c4"},{"name":"2005 S12E12 - Tower Blocks and Togas - South Shields","lat":54.9983,"lng":-1.43,"location":"South Shields","county":"Tyne and Wear","country":"England","period":"Roman","airDate":"2005-03-20","episode":"S12E12","grade":"B","era":"c4"},{"name":"2005 S12E13 - Animal Farm - Hanslope","lat":52.1261,"lng":-0.8737,"location":"Hanslope","county":"Buckinghamshire","country":"England","period":"Iron Age","airDate":"2005-03-27","episode":"S12E13","grade":"A","era":"c4"},{"name":"2005 Special - King of Bling - Prittlewell","lat":51.55,"lng":0.7167,"location":"Prittlewell","county":"Essex","country":"England","period":"Anglo-Saxon","airDate":"2005-06-13","episode":"Special","grade":"B","era":"special"},{"name":"2005 Special - Britain's Lost Roman Circus - Colchester","lat":51.8917,"lng":0.9033,"location":"Colchester","county":"Essex","country":"England","period":"Roman","airDate":"2005-06-20","episode":"Special","grade":"B","era":"special"},{"name":"2005 Special - Life on the Edge 1000 B.C. - Washingborough","lat":53.2167,"lng":-0.4833,"location":"Washingborough","county":"Lincoln","country":"England","period":"Bronze Age","airDate":"2005-06-27","episode":"Special","grade":"B","era":"special"},{"name":"2005 Special - Journey to Stonehenge - Durrington","lat":51.195,"lng":-1.7783,"location":"Durrington","county":"Wiltshire","country":"England","period":"Neolithic","airDate":"2005-11-28","episode":"Special","grade":"B","era":"special"},{"name":"2006 Special - The Big Roman Villa - Dinnington","lat":50.95,"lng":-2.7333,"location":"Dinnington","county":"Somerset","country":"England","period":"Roman","airDate":"2006-01-08","episode":"Special","grade":"B","era":"special"},{"name":"2006 S13E01 - The Bodies in the Shed - Glendon","lat":52.4,"lng":-0.8333,"location":"Glendon","county":"Northamptonshire","country":"England","period":"","airDate":"2006-01-22","episode":"S13E01","grade":"B","era":"c4"},{"name":"2006 S13E02 - Villas out of Molehills - Withington","lat":51.8,"lng":-1.9667,"location":"Withington","county":"Gloucestershire","country":"England","period":"Roman","airDate":"2006-01-29","episode":"S13E02","grade":"B","era":"c4"},{"name":"2006 S13E03 - Rubble at the Mill - Manchester","lat":53.4808,"lng":-2.2426,"location":"Manchester","county":"Greater Manchester","country":"England","period":"Industrial Revolution","airDate":"2006-02-05","episode":"S13E03","grade":"B","era":"c4"},{"name":"2006 S13E04 - The First Tudor Palace? - Esher","lat":51.3697,"lng":-0.365,"location":"Esher","county":"Surrey","country":"England","period":"Tudor","airDate":"2006-02-12","episode":"S13E04","grade":"B","era":"c4"},{"name":"2006 S13E05 - The Boat on the Rhine - Utrecht","lat":52.0907,"lng":5.1214,"location":"Utrecht","county":"","country":"Netherlands","period":"Roman","airDate":"2006-02-19","episode":"S13E05","grade":"B","era":"c4"},{"name":"2006 S13E06 - Court of the Kentish King - Eastry","lat":51.25,"lng":1.3,"location":"Eastry","county":"Kent","country":"England","period":"Anglo-Saxon","airDate":"2006-02-26","episode":"S13E06","grade":"B","era":"c4"},{"name":"2006 S13E07 - The Monks' Manor - Brimham, Harrogate","lat":54.0833,"lng":-1.6833,"location":"Brimham, Harrogate","county":"North Yorkshire","country":"England","period":"","airDate":"2006-03-05","episode":"S13E07","grade":"B","era":"c4"},{"name":"2006 S13E08 - Castle in the Round - Queenborough","lat":51.4167,"lng":0.75,"location":"Queenborough","county":"Kent","country":"England","period":"Medieval","airDate":"2006-03-12","episode":"S13E08","grade":"B","era":"c4"},{"name":"2006 S13E09 - Sussex Ups and Downs - Blackpatch","lat":50.8333,"lng":-0.4167,"location":"Blackpatch","county":"West Sussex","country":"England","period":"","airDate":"2006-03-19","episode":"S13E09","grade":"B","era":"c4"},{"name":"2006 S13E10 - Birthplace of the Confessor - Islip","lat":51.8167,"lng":-1.2333,"location":"Islip","county":"Oxfordshire","country":"England","period":"Anglo-Saxon","airDate":"2006-03-26","episode":"S13E10","grade":"B","era":"c4"},{"name":"2006 S13E11 - Early Bath - Ffrith","lat":53.0903,"lng":-3.0696,"location":"Ffrith","county":"Flintshire","country":"Wales","period":"Roman","airDate":"2006-04-02","episode":"S13E11","grade":"A","era":"c4"},{"name":"2006 S13E12 - The Taxman's Tavern - Alfoldean/Horsham","lat":51.0852,"lng":-0.4046,"location":"Alfoldean/Horsham","county":"West Sussex","country":"England","period":"Roman","airDate":"2006-04-09","episode":"S13E12","grade":"A","era":"c4"},{"name":"2006 S13E13 - Scotch Broch - Applecross","lat":57.4318,"lng":-5.8139,"location":"Applecross","county":"Scottish Highlands","country":"Scotland","period":"Iron Age","airDate":"2006-04-16","episode":"S13E13","grade":"A","era":"c4"},{"name":"2006 Special - Buried By The Blitz - Shoreditch Park","lat":51.5333,"lng":-0.0833,"location":"Shoreditch Park","county":"London","country":"England","period":"World War II","airDate":"2006-10-29","episode":"Special","grade":"B","era":"special"},{"name":"2006 Special - Big Royal Dig - Windsor Castle/Holyroodhouse/Buckingham Palace","lat":51.4839,"lng":-0.6044,"location":"Windsor Castle/Holyroodhouse/Buckingham Palace","county":"","country":"England/Scotland","period":"","airDate":"2006-12-31","episode":"Special","grade":"C","era":"special"},{"name":"2007 S14E01 - Finds on the Fairway - Mount Murray","lat":54.15,"lng":-4.5833,"location":"Mount Murray","county":"","country":"Isle of Man","period":"","airDate":"2007-01-14","episode":"S14E01","grade":"B","era":"c4"},{"name":"2007 S14E02 - There's No Place Like Rome - Blacklands, near Frome","lat":51.2333,"lng":-2.3167,"location":"Blacklands, near Frome","county":"Somerset","country":"England","period":"Roman","airDate":"2007-01-21","episode":"S14E02","grade":"B","era":"c4"},{"name":"2007 S14E03 - School Diggers Medieval - Hooke Court","lat":50.7833,"lng":-2.6167,"location":"Hooke Court","county":"Dorset","country":"England","period":"Medieval","airDate":"2007-01-28","episode":"S14E03","grade":"B","era":"c4"},{"name":"2007 S14E04 - The Druids' Last Stand - Amlwch","lat":53.4,"lng":-4.3333,"location":"Amlwch","county":"Anglesey","country":"Wales","period":"Iron Age","airDate":"2007-02-04","episode":"S14E04","grade":"B","era":"c4"},{"name":"2007 S14E05 - Sharpe's Redoubt - Sandgate","lat":51.0833,"lng":1.0833,"location":"Sandgate","county":"Kent","country":"England","period":"Napoleonic","airDate":"2007-02-11","episode":"S14E05","grade":"B","era":"c4"},{"name":"2007 S14E06 - A Port and Stilton - Stilton","lat":52.4833,"lng":-0.2667,"location":"Stilton","county":"Cambridgeshire","country":"England","period":"","airDate":"2007-02-18","episode":"S14E06","grade":"B","era":"c4"},{"name":"2007 S14E07 - A Tale of Two Villages - Wicken","lat":52.2,"lng":-1.0333,"location":"Wicken","county":"Northamptonshire","country":"England","period":"","airDate":"2007-02-25","episode":"S14E07","grade":"B","era":"c4"},{"name":"2007 Special - The God Of Gothic - Ramsgate","lat":51.3361,"lng":1.4164,"location":"Ramsgate","county":"Kent","country":"England","period":"","airDate":"2007-03-01","episode":"Special","grade":"B","era":"special"},{"name":"2007 S14E08 - No Stone Unturned - Warburton","lat":53.3833,"lng":-2.4167,"location":"Warburton","county":"Greater Manchester","country":"England","period":"","airDate":"2007-03-04","episode":"S14E08","grade":"B","era":"c4"},{"name":"2007 S14E09 - The Domesday Mill - Dotton","lat":50.7167,"lng":-3.3333,"location":"Dotton","county":"Devon","country":"England","period":"Medieval","airDate":"2007-03-11","episode":"S14E09","grade":"B","era":"c4"},{"name":"2007 S14E10 - The Cheyne Gang - Chesham Bois","lat":51.6833,"lng":-0.6167,"location":"Chesham Bois","county":"Buckinghamshire","country":"England","period":"","airDate":"2007-03-18","episode":"S14E10","grade":"B","era":"c4"},{"name":"2007 S14E11 - Road to the Relics - Godstone","lat":51.2333,"lng":-0.0667,"location":"Godstone","county":"Surrey","country":"England","period":"","airDate":"2007-03-25","episode":"S14E11","grade":"B","era":"c4"},{"name":"2007 S14E12 - The Abbey Habit - Poulton","lat":53.1259,"lng":-2.8883,"location":"Poulton","county":"Cheshire","country":"England","period":"Medieval","airDate":"2007-04-01","episode":"S14E12","grade":"A","era":"c4"},{"name":"2007 S14E13 - In the Shadow of the Tor - Bodmin Moor","lat":50.6038,"lng":-4.6275,"location":"Bodmin Moor","county":"Cornwall","country":"England","period":"Medieval","airDate":"2007-04-08","episode":"S14E13","grade":"A","era":"c4"},{"name":"2007 Special - Jamestown: America's Birthplace - Jamestown","lat":37.2087,"lng":-76.7758,"location":"Jamestown","county":"Virginia","country":"USA","period":"Colonial","airDate":"2007-05-01","episode":"Special","grade":"A","era":"special"},{"name":"2007 Special - Secrets of the Stately Garden - Prior Park","lat":51.3667,"lng":-2.35,"location":"Prior Park","county":"Bath","country":"England","period":"","airDate":"2007-08-27","episode":"Special","grade":"A","era":"special"},{"name":"2008 S15E01 - Gold in the Moat - Codnor Castle","lat":53.0333,"lng":-1.3833,"location":"Codnor Castle","county":"Derbyshire","country":"England","period":"Medieval","airDate":"2008-01-06","episode":"S15E01","grade":"B","era":"c4"},{"name":"2008 S15E02 - Street of the Dead - Binchester","lat":54.6667,"lng":-1.6833,"location":"Binchester","county":"County Durham","country":"England","period":"Roman","airDate":"2008-01-13","episode":"S15E02","grade":"B","era":"c4"},{"name":"2008 Special - Codename: Ainsbrook - Thirsk","lat":54.2333,"lng":-1.35,"location":"Thirsk","county":"Yorkshire","country":"England","period":"","airDate":"2008-01-14","episode":"Special","grade":"B","era":"special"},{"name":"2008 S15E03 - Bodies in the Dunes - Allasdale, Barra","lat":56.9833,"lng":-7.4333,"location":"Allasdale, Barra","county":"Western Isles","country":"Scotland","period":"","airDate":"2008-01-20","episode":"S15E03","grade":"B","era":"c4"},{"name":"2008 S15E04 - The Naughty Nuns of Northampton - Towcester","lat":52.1333,"lng":-1.0,"location":"Towcester","county":"Northamptonshire","country":"England","period":"Medieval","airDate":"2008-01-27","episode":"S15E04","grade":"B","era":"c4"},{"name":"2008 S15E05 - Mysteries of the Mosaic - Coberley","lat":51.8333,"lng":-2.0167,"location":"Coberley","county":"Gloucestershire","country":"England","period":"Roman","airDate":"2008-02-03","episode":"S15E05","grade":"B","era":"c4"},{"name":"2008 S15E06 - Blitzkrieg on Shooter's Hill - South London","lat":51.4614,"lng":-0.0546,"location":"South London","county":"London","country":"England","period":"World War II","airDate":"2008-02-10","episode":"S15E06","grade":"C","era":"c4"},{"name":"2008 S15E07 - Keeping up with the Georgians - Hunstrete","lat":51.35,"lng":-2.5333,"location":"Hunstrete","county":"Somerset","country":"England","period":"Georgian","airDate":"2008-02-17","episode":"S15E07","grade":"B","era":"c4"},{"name":"2008 S15E08 - Saxons on the Edge - Stonton Wyville","lat":52.5333,"lng":-0.9,"location":"Stonton Wyville","county":"Leicestershire","country":"England","period":"Anglo-Saxon","airDate":"2008-02-24","episode":"S15E08","grade":"B","era":"c4"},{"name":"2008 Special - The Real Knights of the Round Table - Windsor Castle","lat":51.4839,"lng":-0.6044,"location":"Windsor Castle","county":"Berkshire","country":"England","period":"Medieval","airDate":"2008-02-25","episode":"Special","grade":"A","era":"special"},{"name":"2008 S15E09 - Fort of the Earls - Dungannon","lat":54.5,"lng":-6.7667,"location":"Dungannon","county":"","country":"Northern Ireland","period":"Tudor","airDate":"2008-03-02","episode":"S15E09","grade":"B","era":"c4"},{"name":"2008 S15E10 - From Constantinople to Cornwall - Padstow","lat":50.5386,"lng":-4.9375,"location":"Padstow","county":"North Cornwall","country":"England","period":"","airDate":"2008-03-09","episode":"S15E10","grade":"B","era":"c4"},{"name":"2008 S15E11 - Five Thousand Tons of Stone - Hamsterley","lat":54.6833,"lng":-1.8667,"location":"Hamsterley","county":"County Durham","country":"England","period":"","airDate":"2008-03-16","episode":"S15E11","grade":"B","era":"c4"},{"name":"2008 S15E12 - The Romans Recycle - Wickenby","lat":53.3167,"lng":-0.3167,"location":"Wickenby","county":"Lincolnshire","country":"England","period":"Roman","airDate":"2008-03-23","episode":"S15E12","grade":"B","era":"c4"},{"name":"2008 S15E13 - Hunting King Harold - Portskewett","lat":51.5833,"lng":-2.7333,"location":"Portskewett","county":"Monmouthshire","country":"Wales","period":"","airDate":"2008-03-30","episode":"S15E13","grade":"B","era":"c4"},{"name":"2008 Special - The Lost WWI Bunker - Flanders","lat":50.8503,"lng":2.885,"location":"Flanders","county":"","country":"Belgium","period":"World War I","airDate":"2008-11-10","episode":"Special","grade":"C","era":"special"},{"name":"2009 S16E01 - The Trouble with Temples - Friar's Wash","lat":51.8333,"lng":-0.4167,"location":"Friar's Wash","county":"Hertfordshire","country":"England","period":"Roman","airDate":"2009-01-04","episode":"S16E01","grade":"B","era":"c4"},{"name":"2009 S16E02 - The Wedding Present - Scargill","lat":54.5667,"lng":-1.95,"location":"Scargill","county":"County Durham","country":"England","period":"","airDate":"2009-01-11","episode":"S16E02","grade":"B","era":"c4"},{"name":"2009 S16E03 - Heroes' Hill - Knockdhu","lat":54.8833,"lng":-5.95,"location":"Knockdhu","county":"County Antrim","country":"Northern Ireland","period":"Iron Age","airDate":"2009-01-18","episode":"S16E03","grade":"B","era":"c4"},{"name":"2009 S16E04 - Toga Town - Caerwent","lat":51.61,"lng":-2.77,"location":"Caerwent","county":"Monmouthshire","country":"Wales","period":"Roman","airDate":"2009-01-25","episode":"S16E04","grade":"B","era":"c4"},{"name":"2009 S16E05 - Blood Sweat and Beers - Rise Hill","lat":54.4333,"lng":-2.5333,"location":"Rise Hill","county":"Cumbria","country":"England","period":"","airDate":"2009-02-01","episode":"S16E05","grade":"B","era":"c4"},{"name":"2009 S16E06 - Buried Bishops and Belfries - Salisbury Cathedral","lat":51.065,"lng":-1.7978,"location":"Salisbury Cathedral","county":"Wiltshire","country":"England","period":"Medieval","airDate":"2009-02-08","episode":"S16E06","grade":"A","era":"c4"},{"name":"2009 S16E07 - Anarchy in the UK - Radcot","lat":51.6833,"lng":-1.5667,"location":"Radcot","county":"Oxfordshire","country":"England","period":"Medieval","airDate":"2009-02-15","episode":"S16E07","grade":"B","era":"c4"},{"name":"2009 S16E08 - Mystery of the Ice Cream Villa - Colworth","lat":52.15,"lng":-0.6,"location":"Colworth","county":"Bedfordshire","country":"England","period":"Roman","airDate":"2009-02-22","episode":"S16E08","grade":"B","era":"c4"},{"name":"2009 S16E09 - Hermit Harbour - Looe","lat":50.3536,"lng":-4.4517,"location":"Looe","county":"Cornwall","country":"England","period":"","airDate":"2009-03-01","episode":"S16E09","grade":"B","era":"c4"},{"name":"2009 S16E10 - Called to the Bar - Lincoln's Inn","lat":51.5165,"lng":-0.1145,"location":"Lincoln's Inn","county":"London","country":"England","period":"","airDate":"2009-03-08","episode":"S16E10","grade":"A","era":"c4"},{"name":"2009 S16E11 - Beacon on the Fens - Chapel Head","lat":52.5,"lng":0.05,"location":"Chapel Head","county":"Cambridgeshire","country":"England","period":"","airDate":"2009-03-15","episode":"S16E11","grade":"B","era":"c4"},{"name":"2009 S16E12 - The Hollow Way - Ulnaby","lat":54.5333,"lng":-1.6333,"location":"Ulnaby","county":"County Durham","country":"England","period":"","airDate":"2009-03-22","episode":"S16E12","grade":"B","era":"c4"},{"name":"2009 S16E13 - Skeletons in the Shed - Blythburgh","lat":52.3333,"lng":1.5833,"location":"Blythburgh","county":"Suffolk","country":"England","period":"","airDate":"2009-03-29","episode":"S16E13","grade":"B","era":"c4"},{"name":"2009 Special - The Secrets of Stonehenge - Stonehenge","lat":51.1789,"lng":-1.8262,"location":"Stonehenge","county":"Wiltshire","country":"England","period":"Neolithic","airDate":"2009-06-01","episode":"Special","grade":"A","era":"special"},{"name":"2009 Special - Dover Castle - Dover","lat":51.1279,"lng":1.3134,"location":"Dover","county":"Kent","country":"England","period":"","airDate":"2009-12-19","episode":"Special","grade":"B","era":"special"},{"name":"2010 S17E01 - Corridors Of Power - Westminster Abbey","lat":51.4994,"lng":-0.1275,"location":"Westminster Abbey","county":"London","country":"England","period":"Anglo-Saxon/Medieval","airDate":"2010-04-18","episode":"S17E01","grade":"A","era":"c4"},{"name":"2010 S17E02 - A Saintly Site - Isle of Mull","lat":56.6117,"lng":-6.0811,"location":"Isle of Mull","county":"Inner Hebrides","country":"Scotland","period":"Early Medieval","airDate":"2010-04-25","episode":"S17E02","grade":"A","era":"c4"},{"name":"2010 S17E03 - Bridge Over The River Tees - Piercebridge","lat":54.5353,"lng":-1.6744,"location":"Piercebridge","county":"County Durham","country":"England","period":"Roman","airDate":"2010-05-02","episode":"S17E03","grade":"A","era":"c4"},{"name":"2010 S17E04 - In The Halls Of A Saxon King - Sutton Courtenay/Drayton","lat":51.6397,"lng":-1.2953,"location":"Sutton Courtenay/Drayton","county":"Oxfordshire","country":"England","period":"Anglo-Saxon","airDate":"2010-05-09","episode":"S17E04","grade":"A","era":"c4"},{"name":"2010 S17E05 - The Massacre In The Cellar - Hopton Castle","lat":52.3958,"lng":-2.9317,"location":"Hopton Castle","county":"Shropshire","country":"England","period":"English Civil War","airDate":"2010-05-16","episode":"S17E05","grade":"A","era":"c4"},{"name":"2010 Special - Nelson's Hospital - Gosport","lat":50.7948,"lng":-1.1244,"location":"Gosport","county":"Hampshire","country":"England","period":"Napoleonic","airDate":"2010-05-17","episode":"Special","grade":"B","era":"special"},{"name":"2010 S17E06 - Potted History - Mildenhall","lat":51.4231,"lng":-1.6908,"location":"Mildenhall","county":"Wiltshire","country":"England","period":"Roman","airDate":"2010-05-23","episode":"S17E06","grade":"A","era":"c4"},{"name":"2010 Special - The Secrets of Westminster Abbey - Westminster Abbey","lat":51.4994,"lng":-0.1275,"location":"Westminster Abbey","county":"London","country":"England","period":"","airDate":"2010-06-28","episode":"Special","grade":"A","era":"special"},{"name":"2010 S17E07 - Death and Dominoes: The First POW Camp - Norman Cross","lat":52.5056,"lng":-0.2903,"location":"Norman Cross","county":"Cambridgeshire","country":"England","period":"Napoleonic","airDate":"2010-10-03","episode":"S17E07","grade":"A","era":"c4"},{"name":"2010 S17E08 - Something For The Weekend - Tregruk Castle/Llangybi","lat":51.6714,"lng":-2.9208,"location":"Tregruk Castle/Llangybi","county":"Monmouthshire","country":"Wales","period":"","airDate":"2010-10-10","episode":"S17E08","grade":"A","era":"c4"},{"name":"2010 S17E09 - Governor's Green - Governor's Green","lat":50.7886,"lng":-1.1031,"location":"Governor's Green","county":"Portsmouth","country":"England","period":"Medieval","airDate":"2010-10-24","episode":"S17E09","grade":"A","era":"c4"},{"name":"2010 S17E10 - Priory Engagement - Burford","lat":51.8078,"lng":-1.6369,"location":"Burford","county":"Oxfordshire","country":"England","period":"Anglo-Saxon/Medieval","airDate":"2010-10-31","episode":"S17E10","grade":"A","era":"c4"},{"name":"2010 S17E11 - There is A Villa Here Somewhere - Litlington","lat":52.0658,"lng":-0.0872,"location":"Litlington","county":"Cambridgeshire","country":"England","period":"Roman","airDate":"2010-11-07","episode":"S17E11","grade":"A","era":"c4"},{"name":"2010 S17E12 - Commanding Heights - Dinmore Hill","lat":52.1608,"lng":-2.7011,"location":"Dinmore Hill","county":"Herefordshire","country":"England","period":"Iron Age","airDate":"2010-11-14","episode":"S17E12","grade":"A","era":"c4"},{"name":"2011 S18E01 - Reservoir Rituals - Tottiford Reservoir","lat":50.636,"lng":-3.683,"location":"Tottiford Reservoir","county":"Devon","country":"England","period":"Neolithic/Bronze Age","airDate":"2011-02-06","episode":"S18E01","grade":"A","era":"c4"},{"name":"2011 S18E02 - Saxon Death Saxon Gold - West Langton","lat":52.5258,"lng":-0.94,"location":"West Langton","county":"Leicestershire","country":"England","period":"Anglo-Saxon","airDate":"2011-02-13","episode":"S18E02","grade":"A","era":"c4"},{"name":"2011 S18E03 - Romans on the Range - High Ham","lat":51.0617,"lng":-2.8264,"location":"High Ham","county":"Somerset","country":"England","period":"Roman","airDate":"2011-02-20","episode":"S18E03","grade":"A","era":"c4"},{"name":"2011 S18E04 - Hitler's Island Fortress - Les Gellettes","lat":49.2097,"lng":-2.16,"location":"Les Gellettes","county":"Jersey","country":"Channel Islands","period":"World War II","airDate":"2011-02-27","episode":"S18E04","grade":"A","era":"c4"},{"name":"2011 S18E05 - Furnace in the Forest - Derwentcote","lat":54.9039,"lng":-1.7972,"location":"Derwentcote","county":"County Durham","country":"England","period":"Industrial Revolution","airDate":"2011-03-06","episode":"S18E05","grade":"A","era":"c4"},{"name":"2011 S18E06 - Under the Gravestones - Castor","lat":52.5728,"lng":-0.3428,"location":"Castor","county":"Cambridgeshire","country":"England","period":"Roman","airDate":"2011-03-13","episode":"S18E06","grade":"A","era":"c4"},{"name":"2011 Special - Wars of the Roses - Bosworth","lat":52.6,"lng":-1.4,"location":"Bosworth","county":"Leicestershire","country":"England","period":"Medieval","airDate":"2011-03-16","episode":"Special","grade":"B","era":"special"},{"name":"2011 S18E07 - House of the White Queen - Groby","lat":52.6639,"lng":-1.2269,"location":"Groby","county":"Leicestershire","country":"England","period":"Norman/Medieval","airDate":"2011-03-20","episode":"S18E07","grade":"A","era":"c4"},{"name":"2011 S18E08 - Cannons and Castles - Mont Orgueil","lat":49.1994,"lng":-2.0194,"location":"Mont Orgueil","county":"Jersey","country":"Channel Islands","period":"Tudor","airDate":"2011-03-27","episode":"S18E08","grade":"A","era":"c4"},{"name":"2011 S18E09 - Mystery of the Manor Moat - Llancaiach Fawr","lat":51.6614,"lng":-3.2814,"location":"Llancaiach Fawr","county":"","country":"Wales","period":"","airDate":"2011-04-03","episode":"S18E09","grade":"A","era":"c4"},{"name":"2011 S18E10 - Search for the Domesday Mill - Buck Mill/Stoke Trister","lat":51.0508,"lng":-2.3636,"location":"Buck Mill/Stoke Trister","county":"Somerset","country":"England","period":"Medieval","airDate":"2011-04-10","episode":"S18E10","grade":"A","era":"c4"},{"name":"2011 S18E11 - Rooting For The Romans - Bedford Purlieus Wood","lat":52.5869,"lng":-0.4597,"location":"Bedford Purlieus Wood","county":"Cambridgeshire","country":"England","period":"Roman","airDate":"2011-04-17","episode":"S18E11","grade":"A","era":"c4"},{"name":"2012 S19E01 - Dig By Wire - Gateholm Island","lat":51.7194,"lng":-5.2306,"location":"Gateholm Island","county":"Pembrokeshire","country":"Wales","period":"","airDate":"2012-01-22","episode":"S19E01","grade":"A","era":"c4"},{"name":"2012 S19E02 - A Village Affair - Bitterley","lat":52.3914,"lng":-2.6322,"location":"Bitterley","county":"Shropshire","country":"England","period":"Medieval","airDate":"2012-01-29","episode":"S19E02","grade":"A","era":"c4"},{"name":"2012 S19E03 - The Drowned Town - Dunwich","lat":52.2761,"lng":1.63,"location":"Dunwich","county":"Suffolk","country":"England","period":"Medieval","airDate":"2012-02-05","episode":"S19E03","grade":"A","era":"c4"},{"name":"2012 S19E04 - The First King of Racing - Newmarket","lat":52.2439,"lng":0.4072,"location":"Newmarket","county":"Suffolk","country":"England","period":"Stuart","airDate":"2012-02-12","episode":"S19E04","grade":"A","era":"c4"},{"name":"2012 S19E05 - Chapel of Secrets - Beadnell","lat":55.5511,"lng":-1.6217,"location":"Beadnell","county":"Northumberland","country":"England","period":"Early Medieval","airDate":"2012-02-19","episode":"S19E05","grade":"A","era":"c4"},{"name":"2012 S19E06 - A Copper Bottomed Dig - Pentrechwyth","lat":51.6339,"lng":-3.9331,"location":"Pentrechwyth","county":"Swansea","country":"Wales","period":"Industrial Revolution","airDate":"2012-02-26","episode":"S19E06","grade":"A","era":"c4"},{"name":"2012 S19E07 - The Only Earl Is Essex - Colne Priory","lat":51.9267,"lng":0.71,"location":"Colne Priory","county":"Essex","country":"England","period":"Medieval","airDate":"2012-03-04","episode":"S19E07","grade":"A","era":"c4"},{"name":"2012 Special - Searching for Shakespeare's House - Stratford-upon-Avon","lat":52.1917,"lng":-1.7083,"location":"Stratford-upon-Avon","county":"Warwickshire","country":"England","period":"Tudor","airDate":"2012-03-11","episode":"Special","grade":"B","era":"special"},{"name":"2012 S19E08 - Secrets of the Dunes - Kenfig","lat":51.5289,"lng":-3.7289,"location":"Kenfig","county":"Bridgend","country":"Wales","period":"Medieval","airDate":"2012-03-18","episode":"S19E08","grade":"A","era":"c4"},{"name":"2012 S19E09 - Rome's Wild West - Caerleon","lat":51.6067,"lng":-2.9661,"location":"Caerleon","county":"Newport","country":"Wales","period":"Roman","airDate":"2012-03-25","episode":"S19E09","grade":"A","era":"c4"},{"name":"2012 S19E10 - How to Lose a Castle - Crewkerne","lat":50.8922,"lng":-2.8247,"location":"Crewkerne","county":"Somerset","country":"England","period":"Norman/Medieval","airDate":"2012-04-01","episode":"S19E10","grade":"A","era":"c4"},{"name":"2012 S19E11 - King John's Lost Palace - Clipstone","lat":53.1767,"lng":-1.0989,"location":"Clipstone","county":"Nottinghamshire","country":"England","period":"Medieval","airDate":"2012-04-08","episode":"S19E11","grade":"A","era":"c4"},{"name":"2012 Special - Rediscovering Ancient Britain - South Dorset Ridgeway","lat":50.6333,"lng":-2.4667,"location":"South Dorset Ridgeway","county":"Dorset","country":"England","period":"Prehistoric","airDate":"2012-06-17","episode":"Special","grade":"C","era":"special"},{"name":"2012 S20E01 - The Forgotten Gunners of WWI - Grantham","lat":52.9117,"lng":-0.6417,"location":"Grantham","county":"Lincolnshire","country":"England","period":"World War I","airDate":"2012-11-11","episode":"S20E01","grade":"B","era":"c4"},{"name":"2013 S20E02 - Brancaster - Brancaster","lat":52.9667,"lng":0.6333,"location":"Brancaster","county":"Norfolk","country":"England","period":"Roman","airDate":"2013-01-06","episode":"S20E02","grade":"B","era":"c4"},{"name":"2013 S20E03 - A Capital Hill - Ely","lat":51.4833,"lng":-3.2333,"location":"Ely","county":"Cardiff","country":"Wales","period":"","airDate":"2013-01-13","episode":"S20E03","grade":"B","era":"c4"},{"name":"2013 S20E04 - Henham's Lost Mansions - Henham Park","lat":52.3667,"lng":1.6,"location":"Henham Park","county":"Suffolk","country":"England","period":"","airDate":"2013-01-20","episode":"S20E04","grade":"B","era":"c4"},{"name":"2013 S20E05 - Warriors - Figheldean","lat":51.2,"lng":-1.7833,"location":"Figheldean","county":"Wiltshire","country":"England","period":"","airDate":"2013-01-27","episode":"S20E05","grade":"B","era":"c4"},{"name":"2013 S20E06 - Lost Mines of Lakeland - Coniston","lat":54.3689,"lng":-3.0733,"location":"Coniston","county":"Cumbria","country":"England","period":"","airDate":"2013-02-03","episode":"S20E06","grade":"B","era":"c4"},{"name":"2013 S20E07 - Horseshoe Hall - Oakham Castle","lat":52.6708,"lng":-0.7292,"location":"Oakham Castle","county":"Rutland","country":"England","period":"Norman","airDate":"2013-02-10","episode":"S20E07","grade":"A","era":"c4"},{"name":"2013 S20E08 - Mystery of the Thames-side Villa - Dropshort","lat":51.6833,"lng":-1.25,"location":"Dropshort","county":"Oxfordshire","country":"England","period":"Roman","airDate":"2013-02-17","episode":"S20E08","grade":"B","era":"c4"},{"name":"2013 S20E09 - The Lost Castle of Dundrum - Dundrum Castle","lat":54.2542,"lng":-5.85,"location":"Dundrum Castle","county":"County Down","country":"Northern Ireland","period":"Norman","airDate":"2013-02-24","episode":"S20E09","grade":"A","era":"c4"},{"name":"2013 S20E10 - Wolsey's Lost Palace - The More/Moor Park","lat":51.6333,"lng":-0.4333,"location":"The More/Moor Park","county":"Hertfordshire","country":"England","period":"Tudor","airDate":"2013-03-03","episode":"S20E10","grade":"B","era":"c4"},{"name":"2013 S20E11 - An Englishman's Castle - Upton Castle/Cosheston","lat":51.7,"lng":-4.95,"location":"Upton Castle/Cosheston","county":"Pembrokeshire","country":"Wales","period":"","airDate":"2013-03-10","episode":"S20E11","grade":"B","era":"c4"},{"name":"2013 Special - The Secret of Lincoln Jail - Lincoln","lat":53.2307,"lng":-0.5406,"location":"Lincoln","county":"Lincolnshire","country":"England","period":"","airDate":"2013-06-30","episode":"Special","grade":"B","era":"special"},{"name":"2013 Special - 1066: The Lost Battlefield - Battle","lat":50.9167,"lng":0.4833,"location":"Battle","county":"East Sussex","country":"England","period":"Norman","airDate":"2013-12-01","episode":"Special","grade":"B","era":"special"},{"name":"2013 Special - The Madness of Bedlam - Bishopsgate","lat":51.5167,"lng":-0.0833,"location":"Bishopsgate","county":"City of London","country":"England","period":"Medieval","airDate":"2013-12-01","episode":"Special","grade":"B","era":"special"},{"name":"2014 Special - The Edwardian Grand Designer - Castle Drogo/Drewsteignton","lat":50.7,"lng":-3.75,"location":"Castle Drogo/Drewsteignton","county":"Devon","country":"England","period":"Edwardian","airDate":"2014-02-23","episode":"Special","grade":"A","era":"special"},{"name":"2014 Special - Britain's Bronze Age Mummies - Low Hauxley","lat":55.3333,"lng":-1.5833,"location":"Low Hauxley","county":"Northumberland","country":"England","period":"Bronze Age","airDate":"2014-03-02","episode":"Special","grade":"B","era":"special"},{"name":"2014 Special - The Boats That Made Britain - Dover","lat":51.1279,"lng":1.3134,"location":"Dover","county":"Kent","country":"England","period":"Bronze Age","airDate":"2014-09-07","episode":"Special","grade":"B","era":"special"},{"name":"2022 S21E01 - Boden Iron Age Fogou (Part 1) - Lizard Peninsula","lat":49.9597,"lng":-5.2075,"location":"Lizard Peninsula","county":"Cornwall","country":"England","period":"Iron Age","airDate":"2022-03-18","episode":"S21E01","grade":"B","era":"youtube"},{"name":"2022 S21E02 - Boden Iron Age Fogou (Part 2) - Lizard Peninsula","lat":49.9597,"lng":-5.2075,"location":"Lizard Peninsula","county":"Cornwall","country":"England","period":"Iron Age","airDate":"2022-03-19","episode":"S21E02","grade":"B","era":"youtube"},{"name":"2022 S21E03 - Boden Iron Age Fogou (Part 3) - Lizard Peninsula","lat":49.9597,"lng":-5.2075,"location":"Lizard Peninsula","county":"Cornwall","country":"England","period":"Iron Age","airDate":"2022-03-20","episode":"S21E03","grade":"B","era":"youtube"},{"name":"2022 S21E04 - Broughton Castle Roman Villa (Part 1) - Broughton Castle","lat":52.0667,"lng":-1.3833,"location":"Broughton Castle","county":"Oxfordshire","country":"England","period":"Roman","airDate":"2022-04-08","episode":"S21E04","grade":"A","era":"youtube"},{"name":"2022 S21E05 - Broughton Castle Roman Villa (Part 2) - Broughton Castle","lat":52.0667,"lng":-1.3833,"location":"Broughton Castle","county":"Oxfordshire","country":"England","period":"Roman","airDate":"2022-04-09","episode":"S21E05","grade":"A","era":"youtube"},{"name":"2022 S21E06 - Broughton Castle Roman Villa (Part 3) - Broughton Castle","lat":52.0667,"lng":-1.3833,"location":"Broughton Castle","county":"Oxfordshire","country":"England","period":"Roman","airDate":"2022-04-10","episode":"S21E06","grade":"A","era":"youtube"},{"name":"2022 S21E07 - Broughton Castle Return (Part 1) - Broughton Castle","lat":52.0667,"lng":-1.3833,"location":"Broughton Castle","county":"Oxfordshire","country":"England","period":"Roman","airDate":"2022-12-22","episode":"S21E07","grade":"A","era":"youtube"},{"name":"2022 S21E08 - Broughton Castle Return (Part 2) - Broughton Castle","lat":52.0667,"lng":-1.3833,"location":"Broughton Castle","county":"Oxfordshire","country":"England","period":"Roman","airDate":"2022-12-23","episode":"S21E08","grade":"A","era":"youtube"},{"name":"2023 S22E01 - Knights Hospitaller Preceptory (Part 1) - Halston Hall/Whittington","lat":52.8167,"lng":-2.9833,"location":"Halston Hall/Whittington","county":"Shropshire","country":"England","period":"Medieval","airDate":"2023-03-26","episode":"S22E01","grade":"B","era":"youtube"},{"name":"2023 S22E02 - Knights Hospitaller Preceptory (Part 2) - Halston Hall/Whittington","lat":52.8167,"lng":-2.9833,"location":"Halston Hall/Whittington","county":"Shropshire","country":"England","period":"Medieval","airDate":"2023-03-27","episode":"S22E02","grade":"B","era":"youtube"},{"name":"2023 S22E03 - Knights Hospitaller Preceptory (Part 3) - Halston Hall/Whittington","lat":52.8167,"lng":-2.9833,"location":"Halston Hall/Whittington","county":"Shropshire","country":"England","period":"Medieval","airDate":"2023-03-28","episode":"S22E03","grade":"B","era":"youtube"},{"name":"2023 S22E04 - Shipwreck off Isle of Purbeck (Mortar Wreck) - Isle of Purbeck","lat":50.6333,"lng":-2.0667,"location":"Isle of Purbeck","county":"Dorset","country":"England","period":"","airDate":"2023-06-10","episode":"S22E04","grade":"C","era":"youtube"},{"name":"2023 S22E05 - Diss Mere (Part 1) - Diss","lat":52.375,"lng":1.1083,"location":"Diss","county":"Norfolk","country":"England","period":"","airDate":"2023-06-30","episode":"S22E05","grade":"B","era":"youtube"},{"name":"2023 S22E06 - Diss Mere (Part 2) - Diss","lat":52.375,"lng":1.1083,"location":"Diss","county":"Norfolk","country":"England","period":"","airDate":"2023-07-01","episode":"S22E06","grade":"B","era":"youtube"},{"name":"2023 S22E07 - Diss Mere (Part 3) - Diss","lat":52.375,"lng":1.1083,"location":"Diss","county":"Norfolk","country":"England","period":"","airDate":"2023-07-02","episode":"S22E07","grade":"B","era":"youtube"},{"name":"2023 S22E08 - Anglo-Saxon Cemetery (Winfarthing) - Winfarthing","lat":52.4333,"lng":1.0667,"location":"Winfarthing","county":"Norfolk","country":"England","period":"Anglo-Saxon","airDate":"2023-07-02","episode":"S22E08","grade":"B","era":"youtube"},{"name":"2023 Special - Digging Band of Brothers - Aldbourne","lat":51.475,"lng":-1.6167,"location":"Aldbourne","county":"Wiltshire","country":"England","period":"World War II","airDate":"2023-09-30","episode":"Special","grade":"B","era":"youtube"},{"name":"2024 S23E01 - Secrets of Wytch Farm - Wytch Farm","lat":50.6667,"lng":-2.0333,"location":"Wytch Farm","county":"Dorset","country":"England","period":"","airDate":"2024-05-20","episode":"S23E01","grade":"B","era":"youtube"},{"name":"2024 S23E02 - Sutton Hoo Ship: Rebuilding a Legend (Part 1) - Sutton Hoo","lat":52.0894,"lng":1.3392,"location":"Sutton Hoo","county":"Suffolk","country":"England","period":"Anglo-Saxon","airDate":"2024-06-01","episode":"S23E02","grade":"A","era":"youtube"},{"name":"2024 Special - Modbury Community Dig - Modbury","lat":50.34,"lng":-3.89,"location":"Modbury","county":"Devon","country":"England","period":"","airDate":"2024-08-01","episode":"Special","grade":"C","era":"youtube"},{"name":"2024 S23E03 - The Princely Burial - Cherington","lat":51.6789,"lng":-2.1,"location":"Cherington","county":"Cotswolds/Gloucestershire","country":"England","period":"","airDate":"2024-12-21","episode":"S23E03","grade":"B","era":"youtube"},{"name":"2025 S24E01 - Digging for Disney (Part 1) - Norton Disney","lat":53.1204,"lng":-0.6795,"location":"Norton Disney","county":"Lincolnshire","country":"England","period":"Medieval","airDate":"2025-09-05","episode":"S24E01","grade":"A","era":"youtube"},{"name":"2025 S24E02 - Digging for Disney (Part 2) - Norton Disney","lat":53.1204,"lng":-0.6795,"location":"Norton Disney","county":"Lincolnshire","country":"England","period":"Medieval","airDate":"2025-09-12","episode":"S24E02","grade":"A","era":"youtube"},{"name":"2025 S24E03 - Digging for Disney (Part 3) - Norton Disney","lat":53.1204,"lng":-0.6795,"location":"Norton Disney","county":"Lincolnshire","country":"England","period":"Medieval","airDate":"2025-09-19","episode":"S24E03","grade":"A","era":"youtube"},{"name":"1993 Pilot - Pilot - Dorchester","lat":51.6416,"lng":-1.1613,"location":"Dorchester","county":"Oxfordshire","country":"England","period":"","airDate":"Unaired","episode":"Pilot","grade":"B","era":"c4"}];
+
+const COLORS = { c4: '#2563eb', special: '#ea580c', youtube: '#16a34a' };
+
+function createIcon(era) {
+    const color = COLORS[era] || COLORS.c4;
+    return L.divIcon({
+        className: '',
+        html: `<svg width="24" height="32" viewBox="0 0 24 32"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 20 12 20s12-11 12-20C24 5.4 18.6 0 12 0z" fill="${color}"/><circle cx="12" cy="11" r="5" fill="white" opacity="0.9"/></svg>`,
+        iconSize: [24, 32],
+        iconAnchor: [12, 32],
+        popupAnchor: [0, -32]
+    });
+}
+
+function gradeHtml(grade) {
+    const cls = grade === 'A' ? 'grade-a' : grade === 'B' ? 'grade-b' : 'grade-c';
+    return `<span class="grade-badge ${cls}" style="display:inline-block;width:1.4rem;height:1.4rem;line-height:1.4rem;text-align:center;border-radius:4px;font-weight:700;font-size:0.75rem;font-family:system-ui">${grade}</span>`;
+}
+
+function makePopup(loc) {
+    const title = loc.location || loc.name.split(' - ').pop();
+    const ep = loc.episode || '';
+    const parts = [`<div class="popup-title">${title}</div>`];
+    parts.push(`<div class="popup-meta">`);
+    if (ep) parts.push(`<span>${ep}</span>`);
+    if (loc.airDate && loc.airDate !== 'Unaired') parts.push(`<span>${loc.airDate}</span>`);
+    if (loc.county) parts.push(`<span>${loc.county}</span>`);
+    if (loc.country && loc.country !== 'England') parts.push(`<span>${loc.country}</span>`);
+    parts.push(`</div>`);
+    if (loc.period) parts.push(`<div class="popup-period">${loc.period}</div>`);
+    if (loc.grade) parts.push(`<div style="margin-top:3px">Accuracy: ${gradeHtml(loc.grade)}</div>`);
+    const episodeTitle = loc.name.replace(/^\d{4}\s+\S+\s+-\s+/, '').replace(/\s+-\s+[^-]+$/, '');
+    if (episodeTitle && episodeTitle !== title) {
+        parts.push(`<div style="margin-top:3px;font-style:italic;color:#6b7280;font-size:12px">${episodeTitle}</div>`);
+    }
+    return parts.join('');
+}
+
+const map = L.map('map').setView([53.5, -1.5], 6);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    maxZoom: 19
+}).addTo(map);
+
+const markers = [];
+LOCATIONS.forEach(loc => {
+    const marker = L.marker([loc.lat, loc.lng], { icon: createIcon(loc.era) });
+    marker.bindPopup(makePopup(loc), { maxWidth: 280 });
+    marker._ttData = loc;
+    markers.push(marker);
+});
+
+let activeGroup = L.layerGroup(markers).addTo(map);
+
+function filterMarkers(filterFn) {
+    activeGroup.remove();
+    const filtered = markers.filter(m => filterFn(m._ttData));
+    activeGroup = L.layerGroup(filtered).addTo(map);
+    if (filtered.length > 0) {
+        const group = L.featureGroup(filtered);
+        map.fitBounds(group.getBounds().pad(0.1));
+    }
+}
+
+document.querySelectorAll('.map-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.map-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('mapSearch').value = '';
+        const f = btn.dataset.filter;
+        if (f === 'all') filterMarkers(() => true);
+        else filterMarkers(d => d.era === f);
+    });
+});
+
+document.getElementById('mapSearch').addEventListener('input', function() {
+    const q = this.value.toLowerCase().trim();
+    document.querySelectorAll('.map-btn').forEach(b => b.classList.remove('active'));
+    if (!q) {
+        document.querySelector('[data-filter="all"]').classList.add('active');
+        filterMarkers(() => true);
+        return;
+    }
+    filterMarkers(d => {
+        return (d.name && d.name.toLowerCase().includes(q)) ||
+               (d.location && d.location.toLowerCase().includes(q)) ||
+               (d.county && d.county.toLowerCase().includes(q)) ||
+               (d.country && d.country.toLowerCase().includes(q)) ||
+               (d.period && d.period.toLowerCase().includes(q)) ||
+               (d.episode && d.episode.toLowerCase().includes(q));
+    });
+});
+</script>
 
 </body>
 </html>
