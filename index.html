@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapping Every Time Team Dig: An AI Collaboration</title>
+    <meta name="description" content="An interactive map of all 291 Time Team archaeological dig locations across 30 years, built through AI collaboration.">
+    <meta property="og:title" content="Mapping Every Time Team Dig: An AI Collaboration">
+    <meta property="og:description" content="All 291 Time Team dig locations mapped — from 1994 Channel 4 episodes to the YouTube revival.">
+    <meta property="og:type" content="article">
+    <style>
+        :root {
+            --bg: #faf9f6;
+            --text: #2c2c2c;
+            --accent: #b45309;
+            --muted: #6b7280;
+            --border: #e5e2dc;
+            --card-bg: #fff;
+            --c4: #2563eb;
+            --special: #ea580c;
+            --yt: #16a34a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.75;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #1a1207 0%, #3d2b0f 50%, #1a1207 100%);
+            color: #faf9f6;
+            padding: 5rem 1.5rem 4rem;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 700;
+            line-height: 1.2;
+            max-width: 800px;
+            margin: 0 auto 1rem;
+        }
+
+        .hero .subtitle {
+            font-size: 1.15rem;
+            color: #d4a574;
+            max-width: 600px;
+            margin: 0 auto 1.5rem;
+            font-style: italic;
+        }
+
+        .hero .meta {
+            font-size: 0.9rem;
+            color: #a08060;
+        }
+
+        .hero .meta a {
+            color: #d4a574;
+            text-decoration: underline;
+        }
+
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 3rem 1.5rem;
+        }
+
+        h2 {
+            font-size: 1.6rem;
+            margin: 2.5rem 0 1rem;
+            color: #1a1207;
+        }
+
+        p {
+            margin-bottom: 1.25rem;
+        }
+
+        a {
+            color: var(--accent);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+
+        .stat-card .number {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--accent);
+            display: block;
+        }
+
+        .stat-card .label {
+            font-size: 0.85rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .map-embed {
+            margin: 2.5rem 0;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        .map-embed iframe {
+            width: 100%;
+            height: 500px;
+            border: 0;
+        }
+
+        .map-caption {
+            background: var(--card-bg);
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .legend {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 1.5rem 0;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.9rem;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .dot-c4 { background: var(--c4); }
+        .dot-special { background: var(--special); }
+        .dot-yt { background: var(--yt); }
+
+        .issues-list {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem 1.5rem 1.5rem 2.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .issues-list li {
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+
+        .workflow-steps {
+            position: relative;
+            margin: 2rem 0;
+            padding-left: 2rem;
+            border-left: 3px solid var(--border);
+        }
+
+        .workflow-step {
+            position: relative;
+            margin-bottom: 2rem;
+            padding-left: 1.5rem;
+        }
+
+        .workflow-step::before {
+            content: attr(data-step);
+            position: absolute;
+            left: -2.85rem;
+            top: 0;
+            width: 2rem;
+            height: 2rem;
+            background: var(--accent);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            font-family: system-ui, sans-serif;
+        }
+
+        .workflow-step h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .workflow-step p {
+            font-size: 0.95rem;
+            color: var(--muted);
+            margin-bottom: 0;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--accent);
+            padding: 1rem 1.5rem;
+            margin: 1.5rem 0;
+            background: var(--card-bg);
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+            color: #4a4a4a;
+        }
+
+        .findings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        @media (max-width: 500px) {
+            .findings-grid { grid-template-columns: 1fr; }
+        }
+
+        .finding-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .finding-card .region {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .finding-card .count {
+            color: var(--accent);
+            font-size: 0.9rem;
+        }
+
+        .finding-card .detail {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-top: 0.25rem;
+        }
+
+        .grade-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.95rem;
+        }
+
+        .grade-table th, .grade-table td {
+            padding: 0.6rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .grade-table th {
+            background: #f5f3ef;
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+        }
+
+        .grade-badge {
+            display: inline-block;
+            width: 1.6rem;
+            height: 1.6rem;
+            line-height: 1.6rem;
+            text-align: center;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 0.8rem;
+            font-family: system-ui, sans-serif;
+        }
+
+        .grade-a { background: #dcfce7; color: #166534; }
+        .grade-b { background: #fef9c3; color: #854d0e; }
+        .grade-c { background: #fee2e2; color: #991b1b; }
+
+        footer {
+            text-align: center;
+            padding: 2rem 1.5rem;
+            font-size: 0.85rem;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+        }
+
+        footer a { color: var(--accent); }
+    </style>
+</head>
+<body>
+
+<header class="hero">
+    <h1>Mapping Every Time Team Dig</h1>
+    <p class="subtitle">An AI Collaboration &mdash; 291 episodes, 281 locations, 30 years of archaeology</p>
+    <p class="meta">Based on <a href="https://www.alexschultz.co.uk/mapping-every-time-team-dig-an-ai-collaboration/">the original article</a> by Alex Schultz &middot; March 24, 2026</p>
+</header>
+
+<main class="container">
+
+    <p>Time Team &mdash; the beloved archaeology documentary &mdash; ran for 20 series on Channel 4 from 1994 to 2014, before being revived on YouTube in 2022. Across that span: over 290 episodes and roughly 280 unique dig locations across 30 years.</p>
+
+    <p>Alex Schultz set out to map every single one of them, not by hand, but through a collaboration between AI agents. The result is a comprehensive database and interactive map of the entire Time Team catalogue.</p>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <span class="number">291</span>
+            <span class="label">Episodes</span>
+        </div>
+        <div class="stat-card">
+            <span class="number">281</span>
+            <span class="label">Mapped Locations</span>
+        </div>
+        <div class="stat-card">
+            <span class="number">30</span>
+            <span class="label">Years</span>
+        </div>
+        <div class="stat-card">
+            <span class="number">~15 min</span>
+            <span class="label">Human Effort</span>
+        </div>
+    </div>
+
+    <h2>The Map</h2>
+
+    <div class="legend">
+        <span class="legend-item"><span class="legend-dot dot-c4"></span> Channel 4 (1994&ndash;2014)</span>
+        <span class="legend-item"><span class="legend-dot dot-special"></span> Specials</span>
+        <span class="legend-item"><span class="legend-dot dot-yt"></span> YouTube Revival (2022+)</span>
+    </div>
+
+    <div class="map-embed">
+        <iframe src="https://www.google.com/maps/d/u/0/embed?mid=1Wo8zrD3EEdehXK6E5Xa4xN1txRfmYJc" allowfullscreen loading="lazy"></iframe>
+        <div class="map-caption">Interactive map of all Time Team dig locations &middot; <a href="https://www.google.com/maps/d/u/0/edit?mid=1Wo8zrD3EEdehXK6E5Xa4xN1txRfmYJc&usp=sharing" target="_blank" rel="noopener">Open in Google Maps</a></div>
+    </div>
+
+    <h2>How It Was Built</h2>
+
+    <p>Rather than manually cataloguing dig sites, Schultz enlisted Claude as a persistent AI agent to locate every Time Team excavation. The agent pulled data from Wikipedia's episode lists, individual series pages, fan databases, and the Time Team Digital YouTube channel.</p>
+
+    <div class="workflow-steps">
+        <div class="workflow-step" data-step="1">
+            <h3>Initial Data Gathering</h3>
+            <p>Claude compiled episode data from multiple sources, producing a CSV database, KML file for Google Maps, and a Leaflet.js interactive map with 271 mapped locations, colour-coded by era.</p>
+        </div>
+        <div class="workflow-step" data-step="2">
+            <h3>Cross-Model Peer Review</h3>
+            <p>The dataset was submitted to ChatGPT for independent critique &mdash; a second opinion from a different model to catch blind spots.</p>
+        </div>
+        <div class="workflow-step" data-step="3">
+            <h3>Quality Revision</h3>
+            <p>ChatGPT's feedback was fed back to Claude, which performed a thorough quality pass to address every identified issue.</p>
+        </div>
+        <div class="workflow-step" data-step="4">
+            <h3>Final Dataset</h3>
+            <p>The v5 dataset: 291 episodes, 281 mapped locations, coordinate accuracy grades, normalised naming, and full audit trails.</p>
+        </div>
+    </div>
+
+    <h2>Issues Found in Peer Review</h2>
+
+    <p>The ChatGPT critique identified several issues with the initial dataset:</p>
+
+    <ul class="issues-list">
+        <li><strong>Geocoding imprecision</strong> &mdash; e.g. Aston Eyre in Shropshire placed at a village centroid rather than the actual dig site</li>
+        <li><strong>11 missing episodes</strong> from various series overlooked in the initial pass</li>
+        <li><strong>Coordinate precision</strong> &mdash; many locations used village-level centroids rather than site-level data</li>
+        <li><strong>No accuracy metadata</strong> &mdash; no way to distinguish precise coordinates from rough estimates</li>
+        <li><strong>Inconsistent naming conventions</strong> across episodes and series</li>
+    </ul>
+
+    <h2>Accuracy Grading</h2>
+
+    <p>The revised dataset introduced a coordinate accuracy grading system for transparency:</p>
+
+    <table class="grade-table">
+        <thead>
+            <tr>
+                <th>Grade</th>
+                <th>Meaning</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><span class="grade-badge grade-a">A</span></td>
+                <td>Site-level</td>
+                <td>Coordinates point to the actual excavation site or monument</td>
+            </tr>
+            <tr>
+                <td><span class="grade-badge grade-b">B</span></td>
+                <td>Village-level</td>
+                <td>Coordinates point to the correct village or immediate area</td>
+            </tr>
+            <tr>
+                <td><span class="grade-badge grade-c">C</span></td>
+                <td>Broad centroid</td>
+                <td>General area only &mdash; exact location could not be determined</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Geographic Findings</h2>
+
+    <div class="findings-grid">
+        <div class="finding-card">
+            <div class="region">Somerset</div>
+            <div class="count">~16 dig sites</div>
+            <div class="detail">The most-dug county in Time Team history</div>
+        </div>
+        <div class="finding-card">
+            <div class="region">London</div>
+            <div class="count">~14 locations</div>
+            <div class="detail">Urban archaeology across the capital</div>
+        </div>
+        <div class="finding-card">
+            <div class="region">International</div>
+            <div class="count">6+ countries</div>
+            <div class="detail">Spain, France, Netherlands, Belgium, West Indies, USA</div>
+        </div>
+        <div class="finding-card">
+            <div class="region">YouTube Revival</div>
+            <div class="count">Ambitious sites</div>
+            <div class="detail">Sutton Hoo, Shetland Viking burial, and more</div>
+        </div>
+    </div>
+
+    <h2>The Takeaway</h2>
+
+    <blockquote>
+        &ldquo;The whole thing&hellip;took a few hours of elapsed time and maybe 15 minutes of my actual attention.&rdquo;
+    </blockquote>
+
+    <p>The most valuable outcome wasn't the map itself but the workflow. Using multiple AI models for peer review &mdash; treating AI outputs as iterative rather than final &mdash; produced meaningfully better results than any single-pass analysis could.</p>
+
+    <p>The approach demonstrates a practical pattern: generate with one model, critique with another, then refine. Each step improves quality, and the total human effort stays remarkably low.</p>
+
+</main>
+
+<footer>
+    <p>Original article by <a href="https://www.alexschultz.co.uk/mapping-every-time-team-dig-an-ai-collaboration/" target="_blank" rel="noopener">Alex Schultz</a> &middot; Site built as a static page project</p>
+</footer>
+
+</body>
+</html>
